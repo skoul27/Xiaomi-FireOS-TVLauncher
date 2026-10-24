@@ -1,8 +1,7 @@
 package com.shivam.tvlauncher.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,8 +22,18 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
@@ -47,14 +56,49 @@ private const val GlareAlpha = 0.22f
 private val RestElevation = 2.dp
 private val FocusedElevation = 22.dp
 
+/** Restores pre-dimmed card art to full brightness, for places that show it outside a card. */
+val UndimFilter = ColorFilter.colorMatrix(
+    ColorMatrix().apply { val g = 1f / ART_RESTING_BRIGHTNESS; setToScale(g, g, g, 1f) },
+)
+
 @Composable
 fun AppCard(
     app: LaunchableApp,
     size: CardSize,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    MotionCard(
+        size = size,
+        label = app.label,
+        accent = app.visual.accent,
+        image = app.visual.image,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = modifier,
+    ) {
+        LetterPlaceholder(app.label, app.visual.placeholder, size.letterSize)
+    }
+}
+
+/**
+ * A focusable 16:9 card with the launcher's focus motion. Draws [image] (pre-dimmed art) when
+ * given, otherwise [placeholder].
+ */
+@Composable
+fun MotionCard(
+    size: CardSize,
+    label: String,
+    accent: Color,
+    image: ImageBitmap?,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    placeholder: @Composable () -> Unit,
+) {
     val motion = remember { CardMotion() }
+    val keys = remember { SelectKeyState() }
     val scope = rememberCoroutineScope()
     val direction = LocalFocusDirection.current
     val tint = LocalBackgroundTint.current
@@ -65,13 +109,15 @@ fun AppCard(
                 .size(size.width, size.height)
                 .onFocusChanged {
                     motion.onFocusChanged(it.isFocused, direction, scope)
-                    if (it.isFocused) tint?.show(app.visual.accent)
+                    if (it.isFocused) tint?.show(accent)
                 }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                )
+                .onKeyEvent { keys.handle(it, onClick, onLongClick) }
+                .semantics {
+                    role = Role.Button
+                    onClick { onClick(); true }
+                    if (onLongClick != null) onLongClick { onLongClick(); true }
+                }
+                .focusable()
                 .graphicsLayer {
                     val f = motion.focus.value
                     val scale = 1f + (FocusedScale - 1f) * f
@@ -84,12 +130,12 @@ fun AppCard(
                     shape = CardShape
                     clip = true
                 }
-                .cardSurface(app, motion),
+                .cardSurface(image, motion),
         ) {
-            if (app.visual.image == null) LetterPlaceholder(app.label, app.visual.placeholder, size.letterSize)
+            if (image == null) placeholder()
         }
         Text(
-            text = app.label,
+            text = label,
             style = if (size == CardSize.Large) LauncherText.LabelLarge else LauncherText.LabelSmall,
             color = LauncherColors.TextPrimary,
             maxLines = 1,
@@ -109,13 +155,43 @@ fun AppCard(
 }
 
 /**
+ * OK/Enter handling: click on release, long-click once the key starts repeating (Android begins
+ * repeating after the long-press delay). A release without a matching press is ignored, so a
+ * key-up left over from another screen or dialog never launches anything.
+ */
+private class SelectKeyState {
+    private var pressed = false
+    private var longPressed = false
+
+    fun handle(event: KeyEvent, onClick: () -> Unit, onLongClick: (() -> Unit)?): Boolean {
+        if (!event.isSelectKey()) return false
+        when (event.type) {
+            KeyEventType.KeyDown -> {
+                if (event.nativeKeyEvent.repeatCount == 0) {
+                    pressed = true
+                    longPressed = false
+                } else if (pressed && !longPressed && onLongClick != null) {
+                    longPressed = true
+                    onLongClick()
+                }
+            }
+            KeyEventType.KeyUp -> {
+                val click = pressed && !longPressed
+                pressed = false
+                if (click) onClick()
+            }
+        }
+        return true
+    }
+}
+
+/**
  * Draws the card art with a soft diagonal glare when focused. Art is cached pre-dimmed (see
  * ART_RESTING_BRIGHTNESS), so resting cards are a plain bitmap draw and only an animating card
  * gets a brightening colour matrix. That matters because every card in a row is redrawn while
- * any one of them animates. Letter placeholders, which are rare, use an overlay instead.
+ * any one of them animates. Placeholders, which are rare, use an overlay instead.
  */
-private fun Modifier.cardSurface(app: LaunchableApp, motion: CardMotion): Modifier = drawWithCache {
-    val image = app.visual.image
+private fun Modifier.cardSurface(image: ImageBitmap?, motion: CardMotion): Modifier = drawWithCache {
     val dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt())
     val glare = Brush.linearGradient(
         0f to Color.White,
@@ -148,7 +224,7 @@ private fun Modifier.cardSurface(app: LaunchableApp, motion: CardMotion): Modifi
 }
 
 @Composable
-private fun LetterPlaceholder(label: String, color: Color, letterSize: TextUnit, modifier: Modifier = Modifier) {
+fun LetterPlaceholder(label: String, color: Color, letterSize: TextUnit, modifier: Modifier = Modifier) {
     val letter = remember(label) {
         label.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "?"
     }
