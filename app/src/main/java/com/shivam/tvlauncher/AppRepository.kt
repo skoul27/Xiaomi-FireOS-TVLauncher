@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PorterDuff
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import androidx.compose.runtime.Immutable
@@ -17,8 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.drawable.toBitmap
+import androidx.palette.graphics.Palette
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Immutable
@@ -51,10 +56,18 @@ class CardVisual(
     val image: ImageBitmap?,
     /** Colour for the letter placeholder, derived from the label so it's stable. */
     val placeholder: Color,
+    /** Dark, Palette-derived tint the background fades to while this card is focused. */
+    val accent: Color,
 )
 
 const val CARD_ART_WIDTH = 448
 const val CARD_ART_HEIGHT = 252
+
+/**
+ * Card art is stored pre-dimmed to its resting (unfocused) brightness, so the many resting cards
+ * draw a plain bitmap; only a focused card pays for a filter that brightens it back to 1.0.
+ */
+const val ART_RESTING_BRIGHTNESS = 0.7f
 
 /**
  * Collects apps from LEANBACK_LAUNCHER and LAUNCHER, one entry per package.
@@ -103,16 +116,47 @@ private object CardVisualCache {
 private fun ResolveInfo.renderVisual(pm: PackageManager, label: String): CardVisual {
     val activity = activityInfo
     val placeholder = placeholderColor(label)
-    val image = runCatching {
+    val letterVisual = CardVisual(image = null, placeholder = placeholder, accent = placeholder.withLightness(0.2f))
+
+    return runCatching {
         val banner = activity.loadBanner(pm) ?: activity.applicationInfo.loadBanner(pm)
         when {
-            banner != null -> renderBanner(banner)
-            activity.iconResource != 0 -> renderIcon(loadIcon(pm), placeholder)
-            else -> null
+            banner != null -> {
+                val art = renderBanner(banner)
+                val accent = dominantHsl(art).toAccent()
+                CardVisual(art.bakeRestingDim().asImageBitmap(), placeholder, accent)
+            }
+            activity.iconResource != 0 -> {
+                val icon = loadIcon(pm)
+                // Near-grey icons (white glyphs, monochrome logos) would give a dull grey panel,
+                // so they borrow the label-derived hue instead.
+                val hsl = dominantHsl(icon.toBitmap(96, 96))?.takeIf { it[1] >= 0.15f }
+                val panel = hsl?.let { Color.hsl(it[0], min(it[1], 0.45f), 0.30f) } ?: placeholder
+                val accent = if (hsl != null) hsl.toAccent() else placeholder.withLightness(0.2f)
+                CardVisual(renderIcon(icon, panel).bakeRestingDim().asImageBitmap(), placeholder, accent)
+            }
+            else -> letterVisual
         }
-    }.getOrNull()
-    return CardVisual(image = image?.asImageBitmap(), placeholder = placeholder)
+    }.getOrDefault(letterVisual)
 }
+
+private fun dominantHsl(bitmap: Bitmap): FloatArray? {
+    val palette = Palette.from(bitmap).maximumColorCount(16).generate()
+    val swatch = palette.vibrantSwatch ?: palette.darkVibrantSwatch ?: palette.mutedSwatch ?: palette.dominantSwatch
+    return swatch?.hsl
+}
+
+/** Keeps the hue but forces it dark and calm enough to sit behind white text. */
+private fun FloatArray?.toAccent(): Color =
+    if (this == null) DefaultAccent else Color.hsl(this[0], min(this[1], 0.6f), this[2].coerceIn(0.16f, 0.24f))
+
+private fun Color.withLightness(lightness: Float): Color {
+    val hsl = FloatArray(3)
+    ColorUtils.colorToHSL(toArgb(), hsl)
+    return Color.hsl(hsl[0], hsl[1], lightness)
+}
+
+private val DefaultAccent = Color(0xFF1A2030)
 
 /** Centre-crops the banner into the fixed card frame. */
 private fun renderBanner(banner: Drawable): Bitmap {
@@ -149,6 +193,11 @@ private fun renderIcon(icon: Drawable, tint: Color): Bitmap {
     icon.setBounds(left, iconTop, left + size, iconTop + size)
     icon.draw(canvas)
     return out
+}
+
+private fun Bitmap.bakeRestingDim(): Bitmap = apply {
+    val black = android.graphics.Color.argb(((1f - ART_RESTING_BRIGHTNESS) * 255).roundToInt(), 0, 0, 0)
+    Canvas(this).drawColor(black, PorterDuff.Mode.SRC_ATOP)
 }
 
 private fun placeholderColor(label: String): Color =

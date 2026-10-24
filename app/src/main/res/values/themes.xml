@@ -4,6 +4,9 @@
         <item name="android:windowBackground">@color/ink</item>
         <item name="android:navigationBarColor">@color/ink</item>
         <item name="android:statusBarColor">@color/ink</item>
+        <!-- Platform defaults are too faint to read on a near-black background. -->
+        <item name="android:spotShadowAlpha">0.6</item>
+        <item name="android:ambientShadowAlpha">0.2</item>
     </style>
 
     <color name="ink">#FF0B0D12</color>
