@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,18 +32,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val installed = MutableStateFlow<List<LaunchableApp>?>(null)
 
     val ui: StateFlow<LauncherUi?> = combine(installed, prefsStore.prefs) { apps, prefs ->
-        apps?.let { arrange(it, prefs) }
+        // Wait for the first-run pins so the first frame already shows them.
+        apps?.takeIf { prefs.seeded }?.let { arrange(it, prefs) }
     }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private var refreshJob: Job? = null
 
-    /** Re-reads installed apps; cheap after the first run because card art is cached. */
+    /** Re-reads installed apps; cheap after the first run because art is cached. */
     fun refresh() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
-            installed.value = withContext(Dispatchers.IO) { loadLaunchableApps(getApplication()) }
+            val apps = withContext(Dispatchers.IO) { loadLaunchableApps(getApplication()) }
+            installed.value = apps
+            val packages = apps.mapTo(HashSet()) { it.packageName }
+            prefsStore.update {
+                if (it.seeded) it else it.copy(pinned = (it.pinned + defaultPinsFor(packages)).distinct(), seeded = true)
+            }
+            // Pinned apps first: they are what the first frame shows.
+            val pinned = prefsStore.prefs.first().pinned.withIndex().associate { (i, pkg) -> pkg to i }
+            AppArtCache.prefetch(getApplication(), apps.sortedBy { pinned[it.packageName] ?: Int.MAX_VALUE })
         }
     }
 

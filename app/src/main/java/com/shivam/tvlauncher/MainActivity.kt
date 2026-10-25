@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -11,12 +12,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shivam.tvlauncher.ui.HomeScreen
 import com.shivam.tvlauncher.ui.LauncherActions
-import com.shivam.tvlauncher.ui.LauncherScreen
 import com.shivam.tvlauncher.ui.LauncherTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels()
+
+    /** Guards against a second OK press launching the app again while it is still opening. */
+    private var lastStartAt = 0L
 
     private val actions = object : LauncherActions {
         override fun launch(app: LaunchableApp) = start(app.launchIntent(), "Can't open ${app.label}")
@@ -36,6 +40,8 @@ class MainActivity : ComponentActivity() {
             Intent(Intent.ACTION_DELETE, packageUri(app)),
             "Can't uninstall ${app.label}",
         )
+
+        override fun openSystemSettings() = start(Intent(Settings.ACTION_SETTINGS), "Settings aren't available")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,7 +49,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             LauncherTheme {
                 val ui by viewModel.ui.collectAsStateWithLifecycle()
-                LauncherScreen(ui = ui, actions = actions)
+                HomeScreen(ui = ui, actions = actions)
             }
         }
     }
@@ -57,6 +63,9 @@ class MainActivity : ComponentActivity() {
     private fun packageUri(app: LaunchableApp): Uri = Uri.fromParts("package", app.packageName, null)
 
     private fun start(intent: Intent, failureMessage: String) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastStartAt < 1_000) return
+        lastStartAt = now
         try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (e: ActivityNotFoundException) {
