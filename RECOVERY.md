@@ -9,8 +9,37 @@ adb shell pm enable com.amazon.tv.launcher
 ```
 
 Then press Home on the remote. Amazon's launcher has priority 950 for HOME, so it takes over
-again as soon as it is enabled. Nothing else needs undoing: this launcher never changes system
-settings.
+again as soon as it is enabled. The launcher app itself never changes system settings; the one
+setting changed by hand is the remote shortcut below.
+
+## Remote shortcut (accessibility service)
+
+Fire OS has no on-screen switch for third-party accessibility services, so the color-button
+shortcut was turned on over adb on 2026-10-25. Values before the change:
+
+```
+enabled_accessibility_services = null   (unset)
+accessibility_enabled          = 0
+```
+
+How it was enabled (appended to the existing list, which was empty):
+
+```sh
+adb shell settings put secure enabled_accessibility_services com.shivam.tvlauncher/.ShortcutKeyService
+adb shell settings put secure accessibility_enabled 1
+```
+
+To turn it off and restore exactly the values above:
+
+```sh
+adb shell settings delete secure enabled_accessibility_services
+adb shell settings put secure accessibility_enabled 0
+```
+
+To turn it off from the TV without adb, set "Remote shortcut" to Off in the launcher's System
+panel: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
+If a Fire OS update switches it off, read the current list first and append again, separated by
+`:`, rather than overwriting it.
 
 ## What this depends on
 
@@ -26,4 +55,6 @@ settings.
 ```sh
 adb shell pm list packages -d | grep com.amazon.tv.launcher   # listed = disabled
 adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
+adb shell settings get secure enabled_accessibility_services
+adb shell dumpsys accessibility | grep -E "Bound services|Enabled services"
 ```
