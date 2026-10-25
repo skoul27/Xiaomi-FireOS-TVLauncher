@@ -191,15 +191,24 @@ private fun renderSquare(drawable: Drawable, size: Int): Bitmap {
     return out
 }
 
-/** Phone-style apps: the icon floating on a soft two-tone panel in the same 16:9 frame. */
+/**
+ * Phone-style apps: the icon on a two-tone panel of its own colours, lifted by a soft halo and
+ * shadow, in the same 16:9 frame as banners so a row of mixed apps still reads as one set.
+ */
 private fun renderIconTile(icon: Bitmap, colors: ArtColors): Bitmap {
     val out = panel(colors)
     val canvas = Canvas(out)
-    val size = (TILE_ART_HEIGHT * 0.5f).roundToInt()
+    val size = (TILE_ART_HEIGHT * 0.58f).roundToInt()
     val left = (TILE_ART_WIDTH - size) / 2f
     val top = (TILE_ART_HEIGHT - size) / 2f
+    val cx = TILE_ART_WIDTH / 2f
+    val cy = TILE_ART_HEIGHT / 2f
+    val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = RadialGradient(cx, cy, size * 1.1f, colors.primary.withAlpha(0.55f), 0, Shader.TileMode.CLAMP)
+    }
+    canvas.drawCircle(cx, cy, size * 1.1f, halo)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-        setShadowLayer(14f, 0f, 6f, 0x66000000)
+        setShadowLayer(16f, 0f, 7f, 0x73000000)
     }
     canvas.drawBitmap(icon, null, android.graphics.RectF(left, top, left + size, top + size), paint)
     return out

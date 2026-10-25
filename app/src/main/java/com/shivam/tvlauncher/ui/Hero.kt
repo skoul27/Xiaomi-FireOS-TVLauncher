@@ -64,7 +64,7 @@ fun Hero(
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
         // Always composed so focus has a stable target; just unreachable until there's an app.
         GlassButton(
             onClick = { app?.let(onOpen) },
@@ -80,15 +80,23 @@ fun Hero(
     }
 }
 
+/** The app's real icon on a glass chip; its initial if it ships no icon. */
 @Composable
 private fun HeroIcon(app: LaunchableApp?) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(68.dp).glass(IconChipShape),
+        modifier = Modifier.size(80.dp).glass(IconChipShape),
     ) {
-        val icon = app?.let { rememberAppArt(it) }?.icon
-        if (icon != null) {
-            Image(icon, contentDescription = null, filterQuality = FilterQuality.Medium, modifier = Modifier.size(50.dp))
+        val art = app?.let { rememberAppArt(it) }
+        val icon = art?.icon
+        when {
+            icon != null -> Image(icon, contentDescription = null, filterQuality = FilterQuality.Medium, modifier = Modifier.size(60.dp))
+            // Only once art has loaded, so an icon on its way never flashes a letter first.
+            art != null && app != null -> Text(
+                app.label.firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "?",
+                style = LauncherText.Display,
+                color = LauncherColors.TextPrimary,
+            )
         }
     }
 }

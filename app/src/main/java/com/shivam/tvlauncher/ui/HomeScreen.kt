@@ -151,7 +151,7 @@ fun HomeScreen(
                 openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 26.dp),
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 18.dp),
             )
 
             SectionTitle("My Apps")
