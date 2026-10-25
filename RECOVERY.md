@@ -16,12 +16,14 @@ setting changed by hand is the remote shortcut below.
 
 As of 2026-10-25 Fire OS refuses to disable Amazon's launcher (`pm disable-user` fails with
 "Cannot disable a protected package"), and it sends Home to Amazon's launcher even with this
-one set as the preferred Home app. So the remote shortcut service below also catches Home:
+one set as the preferred Home app. It also handles the Home key before any app (or
+accessibility service) sees it. So the remote shortcut service below watches for Amazon's home
+screen opening and opens this launcher over it, after a 0.4 s wait (Fire OS Settings passes
+through Amazon's home on the way to its own screen; that is left alone).
 
-- **Press Home**: opens this launcher (or resets it to the start if it's already open).
-- **Hold Home**: hands the press to Fire OS, which opens Amazon's home. Use this if this
-  launcher ever misbehaves.
-- To stop catching Home altogether, turn the service off with the commands below.
+- **Press Home**: Amazon's home flashes briefly, then this launcher (reset to the start).
+- **To get Amazon's home back** from the TV: gear → Launcher settings → Home button →
+  "Fire TV home". From a computer: turn the service off with the commands below.
 
 This launcher was also set as the preferred Home app on 2026-10-25. Fire OS ignores that today;
 to undo it anyway:

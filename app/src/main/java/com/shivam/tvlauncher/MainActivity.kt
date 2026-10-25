@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
         override fun setShortcutKey(key: ColorKey?) = viewModel.setShortcutKey(key)
         override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
         override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
+        override fun setHomeRedirect(enabled: Boolean) = viewModel.setHomeRedirect(enabled)
         override fun recheckShortcut() {
             shortcutService = readShortcutService()
         }
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
                     ui = ui,
                     shortcuts = shortcuts,
                     remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutService.on, shortcutService.enableCommands),
+                    homeRedirect = settings.homeRedirect,
                     homePresses = homePresses,
                     opens = opens,
                     backup = backup,

@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">TV Launcher</string>
     <string name="shortcut_service_label">TV Launcher remote shortcut</string>
-    <string name="shortcut_service_description">"Opens TV Launcher from any app when you press Home or the color button chosen in the launcher's settings. Hold Home for Amazon's home. It only checks which button was pressed. It can't see what's on screen, has no internet access, and keeps no record."</string>
+    <string name="shortcut_service_description">"Opens TV Launcher from any app when you press the color button chosen in the launcher's settings, and in place of Amazon's home screen when that opens. It only checks which button was pressed and whether Amazon's home opened. It can't see what's on screen and keeps no record."</string>
 </resources>

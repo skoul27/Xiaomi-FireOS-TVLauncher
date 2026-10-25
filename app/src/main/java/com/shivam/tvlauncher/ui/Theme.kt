@@ -93,8 +93,8 @@ val PillShape = RoundedCornerShape(percent = 50)
 object LauncherText {
     val Hero = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 54.sp, lineHeight = 62.sp, letterSpacing = (-0.9).sp)
     val Display = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.6).sp)
-    val Time = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 24.sp, lineHeight = 28.sp, letterSpacing = 0.sp)
-    val Date = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.2.sp)
+    /** The home screen's clock: big and light, so it reads from the sofa without shouting. */
+    val Clock = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 88.sp, lineHeight = 96.sp, letterSpacing = (-2).sp)
     val Section = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 22.sp, letterSpacing = 0.2.sp)
     val Title = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp)
     val Button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp)

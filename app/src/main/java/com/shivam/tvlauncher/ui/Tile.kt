@@ -36,11 +36,12 @@ import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.rememberAppArt
 import kotlin.math.roundToInt
 
-enum class TileSize(val width: Dp, val gap: Dp) {
-    /** Five across exactly fill the 864dp between the safe-area margins; the sixth peeks in. */
-    Standard(width = 154.dp, gap = 23.dp);
+enum class TileSize(val width: Dp, val height: Dp, val gap: Dp) {
+    /** 16:9. Five across exactly fill the 864dp between the safe-area margins; the sixth peeks in. */
+    Standard(width = 154.dp, height = 154.dp * 9f / 16f, gap = 23.dp),
 
-    val height: Dp get() = width * 9f / 16f
+    /** A wide card two app columns across, so console cards line up with the apps above. */
+    Console(width = 154.dp * 2 + 23.dp, height = 96.dp, gap = 23.dp),
 }
 
 /** Resting tiles sit back; the focused one comes up to full brightness. */

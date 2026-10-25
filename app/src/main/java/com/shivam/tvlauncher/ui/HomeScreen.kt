@@ -87,6 +87,7 @@ interface LauncherActions {
     fun setShortcutKey(key: ColorKey?)
     fun setTheme(accent: Accent)
     fun setAnimations(enabled: Boolean)
+    fun setHomeRedirect(enabled: Boolean)
     /** Re-reads whether the shortcut service is on; the panels call it as they open. */
     fun recheckShortcut()
     fun exportBackup()
@@ -125,6 +126,7 @@ fun HomeScreen(
     ui: LauncherUi?,
     shortcuts: List<SystemShortcut>,
     remoteShortcut: RemoteShortcut,
+    homeRedirect: Boolean,
     homePresses: Int,
     opens: Int,
     backup: BackupState?,
@@ -187,7 +189,6 @@ fun HomeScreen(
 
         Column(Modifier.fillMaxSize()) {
             Hero(
-                state = hero,
                 modifier = Modifier
                     .weight(1f)
                     .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 32.dp),
@@ -253,6 +254,7 @@ fun HomeScreen(
             LauncherSettingsMenu(
                 accent = LocalAccentTheme.current,
                 animations = animate,
+                homeRedirect = homeRedirect,
                 remoteShortcut = remoteShortcut,
                 backupMessage = (backup as? BackupState.Message)?.text,
                 actions = actions,
@@ -329,7 +331,7 @@ private fun OpenVeil(opens: Int) {
 @Composable
 private fun ConsolesRow(onOpen: (Console) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap),
+        horizontalArrangement = Arrangement.spacedBy(TileSize.Console.gap),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
     ) {
         for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })

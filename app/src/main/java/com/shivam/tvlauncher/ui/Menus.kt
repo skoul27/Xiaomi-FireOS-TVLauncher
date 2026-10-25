@@ -157,6 +157,7 @@ private fun ShortcutOffNotice(key: ColorKey, commands: List<String>) {
 fun LauncherSettingsMenu(
     accent: Accent,
     animations: Boolean,
+    homeRedirect: Boolean,
     remoteShortcut: RemoteShortcut,
     backupMessage: String?,
     actions: LauncherActions,
@@ -169,6 +170,10 @@ fun LauncherSettingsMenu(
             actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
         }
         SettingItem("Animations", if (animations) "On" else "Off") { actions.setAnimations(!animations) }
+        // Rides on the remote shortcut's service, so it needs that turned on too.
+        SettingItem("Home button", if (homeRedirect) "This launcher" else "Fire TV home") {
+            actions.setHomeRedirect(!homeRedirect)
+        }
         val key = remoteShortcut.key
         SettingItem("Remote shortcut", key?.label ?: "Off") {
             val order = listOf(null) + ColorKey.entries

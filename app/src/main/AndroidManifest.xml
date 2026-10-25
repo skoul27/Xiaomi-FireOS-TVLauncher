@@ -4,8 +4,11 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <!-- Read-only connectivity state for the top bar's network indicator. No INTERNET permission. -->
+    <!-- Read-only connectivity state for the top bar's network indicator. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Only for the clock's weather line (Open-Meteo), and only once a place is set in Weather.kt. -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Lets the long-press menu open the system uninstall dialog. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />

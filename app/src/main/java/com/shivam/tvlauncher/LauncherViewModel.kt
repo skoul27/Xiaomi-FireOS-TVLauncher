@@ -87,6 +87,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAnimations(enabled: Boolean) = edit { it.copy(animations = enabled) }
 
+    fun setHomeRedirect(enabled: Boolean) = edit { it.copy(homeRedirect = enabled) }
+
     /** Swaps [app] with its neighbour in [row]; the row's visible order becomes the saved order. */
     fun move(app: LaunchableApp, row: RowKind, delta: Int) {
         val order = ui.value?.row(row)?.map { it.packageName }?.toMutableList() ?: return
