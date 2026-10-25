@@ -32,14 +32,21 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Network status (opens Wi-Fi settings), time and date, and the settings button, top-right. */
+/** Cast, network status (opens Wi-Fi settings), time and date, and the settings button, top-right. */
 @Composable
-fun TopBar(networkButton: @Composable () -> Unit, settingsButton: @Composable () -> Unit, modifier: Modifier = Modifier) {
+fun TopBar(
+    castButton: @Composable () -> Unit,
+    networkButton: @Composable () -> Unit,
+    settingsButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End,
         modifier = modifier.fillMaxWidth().height(TopBarHeight),
     ) {
+        castButton()
+        Spacer(Modifier.width(12.dp))
         networkButton()
         Spacer(Modifier.width(22.dp))
         Clock()
@@ -59,6 +66,20 @@ fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.size(48.dp),
     ) { focused ->
         GearIcon(buttonContentColor(focused))
+    }
+}
+
+/** Opens screen mirroring, so a phone can cast to the TV. */
+@Composable
+fun CastButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    GlassButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        modifier = modifier.height(36.dp),
+    ) { focused ->
+        CastIcon(buttonContentColor(focused), size = 17.dp)
+        Spacer(Modifier.width(9.dp))
+        Text("Cast", style = LauncherText.Caption, color = buttonContentColor(focused))
     }
 }
 

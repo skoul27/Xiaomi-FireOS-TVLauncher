@@ -25,10 +25,10 @@ import androidx.tv.material3.Text
 import com.shivam.tvlauncher.Console
 import com.shivam.tvlauncher.ConsoleBrand
 
-/** A console's tile: its logo drawn in code, with the HDMI port it's on. The logo is the label. */
+/** A console's tile: its logo drawn in code, with the HDMI port it's on. */
 @Composable
 fun ConsoleTile(console: Console, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    GlassTile(size = TileSize.Small, label = null, art = null, onClick = onClick, onLongClick = null, modifier = modifier) {
+    GlassTile(size = TileSize.Standard, label = console.name, art = null, onClick = onClick, onLongClick = null, modifier = modifier) {
         when (console.brand) {
             ConsoleBrand.PlayStation5 -> PlayStationArt()
         }

@@ -50,6 +50,10 @@ class MainActivity : ComponentActivity() {
             start(Intent(shortcut.intent), "${shortcut.label} isn't available")
         }
 
+        override fun openCast() {
+            start(Intent(CastScreenIntent), "Screen mirroring isn't available")
+        }
+
         override fun openWifiSettings() {
             start(Intent(Settings.ACTION_WIFI_SETTINGS), "Wi-Fi settings aren't available")
         }

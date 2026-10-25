@@ -37,8 +37,8 @@ import com.shivam.tvlauncher.rememberAppArt
 import kotlin.math.roundToInt
 
 enum class TileSize(val width: Dp, val gap: Dp) {
-    Large(width = 192.dp, gap = 26.dp),
-    Small(width = 152.dp, gap = 22.dp);
+    /** Five across exactly fill the 864dp between the safe-area margins; the sixth peeks in. */
+    Standard(width = 154.dp, gap = 23.dp);
 
     val height: Dp get() = width * 9f / 16f
 }
@@ -122,7 +122,7 @@ fun GlassTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .padding(top = 12.dp, start = 2.dp, end = 2.dp)
+                .padding(top = 10.dp, start = 2.dp, end = 2.dp)
                 .graphicsLayer {
                     // Ride below the scaled tile instead of being covered by it.
                     translationY = (FocusedScale - 1f) * motion.focus.value * size.height.toPx() / 2f

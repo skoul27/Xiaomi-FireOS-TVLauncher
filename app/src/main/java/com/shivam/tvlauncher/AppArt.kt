@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.PathParser
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -98,13 +97,8 @@ fun rememberAppArt(app: LaunchableApp): AppArt? {
 private fun renderArt(context: Context, app: LaunchableApp): AppArt {
     val pm = context.packageManager
     val info = runCatching { pm.getActivityInfo(app.component, 0) }.getOrNull()
-    val isCast = app.packageName == CAST_SCREEN_PACKAGE
-    val banner = info?.takeUnless { isCast }?.let { runCatching { it.loadBanner(pm) ?: it.applicationInfo.loadBanner(pm) }.getOrNull() }
-    val icon = if (isCast) {
-        renderCastIcon(ICON_SIZE)
-    } else {
-        info?.let { runCatching { renderSquare(it.loadIcon(pm), ICON_SIZE) }.getOrNull() }
-    }
+    val banner = info?.let { runCatching { it.loadBanner(pm) ?: it.applicationInfo.loadBanner(pm) }.getOrNull() }
+    val icon = info?.let { runCatching { renderSquare(it.loadIcon(pm), ICON_SIZE) }.getOrNull() }
     val bannerBitmap = banner?.let { runCatching { renderBanner(it) }.getOrNull() }
     val colors = artColors(bannerBitmap ?: icon, labelHue(app.label))
     val tile = bannerBitmap
@@ -219,29 +213,6 @@ private fun renderIconTile(icon: Bitmap, colors: ArtColors): Bitmap {
         setShadowLayer(16f, 0f, 7f, 0x73000000)
     }
     canvas.drawBitmap(icon, null, android.graphics.RectF(left, top, left + size, top + size), paint)
-    return out
-}
-
-/**
- * The Material "cast" glyph, white on a blue-to-teal rounded square, so Cast Screen sits among
- * real app icons. Path data is the 24-unit Material icon, scaled up.
- */
-private fun renderCastIcon(size: Int): Bitmap {
-    val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(out)
-    val s = size.toFloat()
-    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        shader = LinearGradient(0f, 0f, s, s, 0xFF2F6FED.toInt(), 0xFF12B5CB.toInt(), Shader.TileMode.CLAMP)
-    }
-    canvas.drawRoundRect(0f, 0f, s, s, s * 0.22f, s * 0.22f, paint)
-    val glyph = PathParser.createPathFromPathData(
-        "M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2" +
-            "c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
-    )
-    val glyphSize = s * 0.58f
-    canvas.translate((s - glyphSize) / 2f, (s - glyphSize) / 2f)
-    canvas.scale(glyphSize / 24f, glyphSize / 24f)
-    canvas.drawPath(glyph, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE })
     return out
 }
 

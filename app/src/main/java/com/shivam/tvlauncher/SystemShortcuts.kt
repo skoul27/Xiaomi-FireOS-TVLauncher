@@ -31,6 +31,11 @@ private val Candidates: List<Pair<String, List<Intent>>> = listOf(
     "Device & Software" to listOf(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)),
 )
 
+/** Fire OS's screen mirroring receiver ("Enable Display Mirroring"), behind the top bar's Cast button. */
+val CastScreenIntent: Intent = Intent().setComponent(
+    ComponentName("com.amazon.cast.sink", "com.amazon.cast.sink.DisplayMirroringSinkActivity"),
+)
+
 /** Runs PackageManager queries; call off the main thread. */
 fun availableSystemShortcuts(context: Context): List<SystemShortcut> =
     Candidates.mapNotNull { (label, intents) ->
@@ -42,7 +47,7 @@ fun availableSystemShortcuts(context: Context): List<SystemShortcut> =
  * Fire OS settings screens are exported but guarded by a signature permission
  * (com.amazon.tv.permission.LAUNCHER_SETTINGS) that adb's shell holds and apps don't.
  */
-internal fun Context.opensDirectly(intent: Intent): Boolean {
+private fun Context.opensDirectly(intent: Intent): Boolean {
     val activity = runCatching { packageManager.resolveActivity(intent, 0)?.activityInfo }.getOrNull() ?: return false
     val permission = activity.permission
     return activity.exported &&

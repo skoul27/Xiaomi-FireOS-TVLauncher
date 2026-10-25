@@ -44,30 +44,8 @@ fun loadLaunchableApps(context: Context): List<LaunchableApp> {
             byPackage[pkg] = info.toLaunchableApp(pm, category)
         }
     }
-    castScreenApp(context)?.let { byPackage.putIfAbsent(it.packageName, it) }
 
     return byPackage.values.sortedBy { it.label.lowercase() }
-}
-
-/**
- * Fire OS's screen mirroring receiver ("Enable Display Mirroring" in Settings). It has no
- * launcher entry of its own, so it's added by hand when it opens directly on this device.
- */
-private val CastScreenComponents = listOf(
-    ComponentName(CAST_SCREEN_PACKAGE, "$CAST_SCREEN_PACKAGE.DisplayMirroringSinkActivity"),
-)
-
-/** It ships only the stock Android icon, so [renderArt] draws a cast glyph for it instead. */
-const val CAST_SCREEN_PACKAGE = "com.amazon.cast.sink"
-
-private fun castScreenApp(context: Context): LaunchableApp? {
-    val pm = context.packageManager
-    val category = Intent.CATEGORY_DEFAULT
-    val info = CastScreenComponents.firstNotNullOfOrNull { component ->
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(category).setComponent(component)
-        if (context.opensDirectly(intent)) pm.resolveActivity(intent, 0) else null
-    } ?: return null
-    return info.toLaunchableApp(pm, category).copy(label = "Cast Screen")
 }
 
 private fun ResolveInfo.toLaunchableApp(pm: PackageManager, category: String): LaunchableApp {

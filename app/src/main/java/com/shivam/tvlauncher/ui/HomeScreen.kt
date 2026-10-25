@@ -44,6 +44,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -80,6 +81,7 @@ interface LauncherActions {
     fun uninstall(app: LaunchableApp)
     fun openShortcut(shortcut: SystemShortcut)
     fun openWifiSettings()
+    fun openCast()
     fun openConsole(console: Console)
     fun refreshApps()
     fun setShortcutKey(key: ColorKey?)
@@ -94,25 +96,28 @@ interface LauncherActions {
     fun dismissBackup()
 }
 
-/** Room above My Apps' tiles so a scaled tile and its glow aren't clipped. */
-private val RowBleed = 28.dp
-
-/** Below the tiles the label line already leaves room for the glow; this spaces Consoles off it. */
-private val RowBleedBottom = 14.dp
+/**
+ * Room around My Apps' tiles so a scaled tile and its glow aren't clipped by the LazyRow. It
+ * overlaps the header and label space around the row instead of taking room of its own.
+ */
+private val RowBleed = 24.dp
 private val EdgeFade = 40.dp
-private val SectionTitleHeight = 22.dp
+private val SectionHeaderHeight = 30.dp
+private val HeaderGap = 8.dp
+private val SectionGap = 12.dp
 
-/** Label line under a tile: 12dp gap plus one line of [LauncherText.Label]. */
-private val LabelHeight = 32.dp
-private val MyAppsRowHeight = TileSize.Large.height + RowBleed + RowBleedBottom + LabelHeight
+/** Label line under a tile: 10dp gap plus one line of [LauncherText.Label]. */
+private val LabelHeight = 30.dp
+private val RowHeight = TileSize.Standard.height + LabelHeight
 
 private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
 /**
- * One screen, no page scroll: the hero fills whatever the My Apps and Consoles rows below it
- * leave; the top bar floats top-right over the hero's empty corner.
+ * One screen, no page scroll: the hero fills whatever the My Apps and Consoles sections below it
+ * leave; the top bar floats top-right over the hero's empty corner. Both sections use one tile
+ * size and one header style, so their columns line up.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -189,37 +194,45 @@ fun HomeScreen(
                 openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 12.dp),
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 6.dp),
             )
 
-            SectionTitle("My Apps")
+            SectionHeader("My Apps") {
+                AppsButtons(
+                    hiddenCount = ui?.hidden?.size ?: 0,
+                    allAppsButton = allAppsButton,
+                    onAllApps = { if (ui != null) popup = AppsPopup.All },
+                    onHidden = { if (ui != null) popup = AppsPopup.Hidden },
+                )
+            }
+            Spacer(Modifier.height(HeaderGap))
             when {
-                ui == null -> Spacer(Modifier.height(MyAppsRowHeight))
+                ui == null -> Spacer(Modifier.height(RowHeight))
                 ui.pinned.isEmpty() -> EmptyMyAppsHint()
                 else -> CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrollSpec) {
                     AppRow(
-                        ui.pinned, RowKind.Pinned, TileSize.Large, actions, openMenu, showInHero,
+                        ui.pinned, RowKind.Pinned, TileSize.Standard, actions, openMenu, showInHero,
                         firstItemFocus = initialFocus,
-                        upTarget = openButton,
                         pendingFocus = pendingFocus?.packageName,
                         onPendingFocusDone = focusDone,
                     )
                 }
             }
 
-            SectionTitle("Consoles")
-            Spacer(Modifier.height(ConsolesGap))
-            ConsolesRow(
-                onOpen = actions::openConsole,
-                hiddenCount = ui?.hidden?.size ?: 0,
-                allAppsButton = allAppsButton,
-                onAllApps = { if (ui != null) popup = AppsPopup.All },
-                onHidden = { if (ui != null) popup = AppsPopup.Hidden },
-            )
+            Spacer(Modifier.height(SectionGap))
+            SectionHeader("Consoles")
+            Spacer(Modifier.height(HeaderGap))
+            ConsolesRow(onOpen = actions::openConsole)
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
         TopBar(
+            castButton = {
+                CastButton(
+                    onClick = actions::openCast,
+                    modifier = Modifier.focusProperties { down = openButton },
+                )
+            },
             networkButton = {
                 NetworkButton(
                     onClick = actions::openWifiSettings,
@@ -328,35 +341,30 @@ private fun OpenVeil(opens: Int) {
     )
 }
 
-private val ConsolesGap = 8.dp
-
 /**
- * The consoles, then "All apps" and "Hidden apps" at the far right of the same line. A plain Row,
- * not lazy: there are only a few tiles, and it doesn't clip their glow, so it needs no bleed.
+ * A plain Row, not lazy: there are only a few consoles, and a Row doesn't clip their glow, so it
+ * needs no bleed.
  */
 @Composable
-private fun ConsolesRow(
-    onOpen: (Console) -> Unit,
-    hiddenCount: Int,
-    allAppsButton: FocusRequester,
-    onAllApps: () -> Unit,
-    onHidden: () -> Unit,
-) {
+private fun ConsolesRow(onOpen: (Console) -> Unit) {
     Row(
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap),
         modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(TileSize.Small.gap), modifier = Modifier.weight(1f)) {
-            for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
-            SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
-        }
+        for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
     }
 }
 
-private val AppsButtonHeight = 38.dp
+/** "All apps" and "Hidden apps", at the right end of the My Apps header. */
+@Composable
+private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
+        SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
+    }
+}
+
+private val AppsButtonHeight = SectionHeaderHeight
 
 @Composable
 private fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -423,14 +431,16 @@ private fun AppMenuFor(
     )
 }
 
+/** A section's title, with optional buttons at the right end of the same line. */
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = LauncherText.Section,
-        color = LauncherColors.TextSecondary,
-        modifier = Modifier.height(SectionTitleHeight).padding(horizontal = SafeArea.Horizontal),
-    )
+private fun SectionHeader(text: String, trailing: @Composable () -> Unit = {}) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().height(SectionHeaderHeight).padding(horizontal = SafeArea.Horizontal),
+    ) {
+        Text(text, style = LauncherText.Section, color = LauncherColors.TextSecondary, modifier = Modifier.weight(1f))
+        trailing()
+    }
 }
 
 @Composable
@@ -439,7 +449,7 @@ private fun EmptyMyAppsHint() {
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .fillMaxWidth()
-            .height(MyAppsRowHeight)
+            .height(RowHeight)
             .padding(horizontal = SafeArea.Horizontal),
     ) {
         Text(
@@ -460,7 +470,6 @@ private fun AppRow(
     onMenu: (LaunchableApp, RowKind) -> Unit,
     onFocused: (LaunchableApp) -> Unit,
     firstItemFocus: FocusRequester?,
-    upTarget: FocusRequester?,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
 ) {
@@ -469,16 +478,15 @@ private fun AppRow(
 
     LazyRow(
         state = listState,
-        contentPadding = PaddingValues(start = SafeArea.Horizontal, end = SafeArea.Horizontal, top = RowBleed, bottom = RowBleedBottom),
+        contentPadding = PaddingValues(horizontal = SafeArea.Horizontal, vertical = RowBleed),
         horizontalArrangement = Arrangement.spacedBy(size.gap),
         // Coming back to a row lands on the tile you left.
-        modifier = Modifier.fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),
+        modifier = Modifier.overlappingBleed(RowBleed).fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),
     ) {
         itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
             var tileModifier: Modifier = Modifier
             if (index == 0 && firstItemFocus != null) tileModifier = tileModifier.focusRequester(firstItemFocus)
             if (app.packageName == pendingFocus) tileModifier = tileModifier.focusRequester(pendingRequester)
-            if (upTarget != null) tileModifier = tileModifier.focusProperties { up = upTarget }
             AppTile(
                 app = app,
                 size = size,
@@ -505,6 +513,13 @@ private fun AppRow(
         runCatching { pendingRequester.requestFocus() }
         onPendingFocusDone()
     }
+}
+
+/** Lays the row out [bleed] smaller top and bottom, so its bleed padding overlaps its neighbours. */
+private fun Modifier.overlappingBleed(bleed: Dp): Modifier = layout { measurable, constraints ->
+    val px = bleed.roundToPx()
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, (placeable.height - px * 2).coerceAtLeast(0)) { placeable.place(0, -px) }
 }
 
 /** Fades the row content to transparent at the left/right edges of the screen. */

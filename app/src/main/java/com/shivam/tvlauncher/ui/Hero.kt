@@ -50,12 +50,12 @@ fun Hero(
             Column {
                 Text(
                     text = shown?.label.orEmpty(),
-                    style = LauncherText.Hero,
+                    style = LauncherText.Display,
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     // Narrow enough to clear the top bar, which this line can sit level with.
-                    modifier = Modifier.widthIn(max = 560.dp),
+                    modifier = Modifier.widthIn(max = 480.dp),
                 )
                 Spacer(Modifier.height(6.dp))
                 // Reserves its line even while loading, so the button below never jumps.

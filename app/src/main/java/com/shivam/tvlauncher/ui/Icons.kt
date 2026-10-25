@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -98,4 +100,21 @@ fun PlayIcon(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier) {
         }
         drawPath(path, color)
     }
+}
+
+/** The Material "cast" glyph: a screen with broadcast arcs in its lower-left corner. */
+@Composable
+fun CastIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        scale(this.size.width / 24f, pivot = Offset.Zero) {
+            drawPath(CastPath, color)
+        }
+    }
+}
+
+private val CastPath: Path by lazy {
+    PathParser().parsePathString(
+        "M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2" +
+            "c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
+    ).toPath()
 }
