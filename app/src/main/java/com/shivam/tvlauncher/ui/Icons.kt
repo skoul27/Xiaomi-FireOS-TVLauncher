@@ -88,20 +88,6 @@ fun EthernetIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) 
     }
 }
 
-@Composable
-fun PlayIcon(color: Color, size: Dp = 14.dp, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(size)) {
-        val w = this.size.width
-        val path = Path().apply {
-            moveTo(w * 0.18f, w * 0.08f)
-            lineTo(w * 0.92f, w * 0.5f)
-            lineTo(w * 0.18f, w * 0.92f)
-            close()
-        }
-        drawPath(path, color)
-    }
-}
-
 /** The Material "cast" glyph: a screen with broadcast arcs in its lower-left corner. */
 @Composable
 fun CastIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {

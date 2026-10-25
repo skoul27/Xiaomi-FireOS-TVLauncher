@@ -140,8 +140,6 @@ fun HomeScreen(
     val backdrop = remember { BackdropState(scope) }
     val hero = remember { HeroState() }
     val initialFocus = remember { FocusRequester() }
-    val openButton = remember { FocusRequester() }
-    val settingsButton = remember { FocusRequester() }
     val allAppsButton = remember { FocusRequester() }
     val scrollMargin = with(LocalDensity.current) { SafeArea.Horizontal.toPx() }
     val rowScrollSpec = remember(scrollMargin, animate) { ComfortableScrollSpec(scrollMargin, animate) }
@@ -195,11 +193,9 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize()) {
             Hero(
                 state = hero,
-                onOpen = actions::launch,
-                openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 6.dp),
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 26.dp),
             )
 
             SectionHeader("My Apps")
@@ -211,7 +207,6 @@ fun HomeScreen(
                     AppRow(
                         ui.pinned, RowKind.Pinned, TileSize.Standard, actions, openMenu, showInHero,
                         firstItemFocus = initialFocus,
-                        upTarget = openButton,
                         pendingFocus = pendingFocus?.packageName,
                         onPendingFocusDone = focusDone,
                     )
@@ -221,8 +216,9 @@ fun HomeScreen(
             Spacer(Modifier.height(SectionGap))
             SectionHeader("Consoles")
             Spacer(Modifier.height(HeaderGap))
-            BottomRow(
-                onOpen = actions::openConsole,
+            ConsolesRow(onOpen = actions::openConsole)
+            Spacer(Modifier.height(BottomButtonsGap))
+            AppsButtons(
                 hiddenCount = ui?.hidden?.size ?: 0,
                 allAppsButton = allAppsButton,
                 onAllApps = { if (ui != null) popup = AppsPopup.All },
@@ -233,22 +229,13 @@ fun HomeScreen(
 
         TopBar(
             castButton = {
-                CastButton(
-                    onClick = actions::openCast,
-                    modifier = Modifier.focusProperties { down = openButton },
-                )
+                CastButton(onClick = actions::openCast)
             },
             networkButton = {
-                NetworkButton(
-                    onClick = actions::openWifiSettings,
-                    modifier = Modifier.focusProperties { down = openButton },
-                )
+                NetworkButton(onClick = actions::openWifiSettings)
             },
             settingsButton = {
-                SettingsButton(
-                    onClick = { showSystem = true },
-                    modifier = Modifier.focusRequester(settingsButton).focusProperties { down = openButton },
-                )
+                SettingsButton(onClick = { showSystem = true })
             },
             modifier = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal),
         )
@@ -347,31 +334,32 @@ private fun OpenVeil(opens: Int) {
 }
 
 /**
- * The consoles from the left, and the All apps / Hidden apps buttons at bottom centre, level with
- * the console tiles. The consoles are a plain Row, not lazy: there are only a few, and a Row
- * doesn't clip their glow, so it needs no bleed.
+ * A plain Row, not lazy: there are only a few consoles, and a Row doesn't clip their glow, so it
+ * needs no bleed.
  */
 @Composable
-private fun BottomRow(
-    onOpen: (Console) -> Unit,
-    hiddenCount: Int,
-    allAppsButton: FocusRequester,
-    onAllApps: () -> Unit,
-    onHidden: () -> Unit,
-) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap)) {
-            for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = (TileSize.Standard.height - RoundButtonSize) / 2),
-        ) {
-            RoundIconButton(onAllApps, Modifier.focusRequester(allAppsButton)) { GridIcon(it) }
-            Box {
-                RoundIconButton(onHidden) { HiddenIcon(it) }
-                if (hiddenCount > 0) CountBadge(hiddenCount, Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp))
-            }
+private fun ConsolesRow(onOpen: (Console) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
+    ) {
+        for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
+    }
+}
+
+private val BottomButtonsGap = 12.dp
+
+/** All apps and Hidden apps: round icon buttons side by side at the bottom centre of the screen. */
+@Composable
+private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        RoundIconButton(onAllApps, Modifier.focusRequester(allAppsButton)) { GridIcon(it) }
+        Box {
+            RoundIconButton(onHidden) { HiddenIcon(it) }
+            if (hiddenCount > 0) CountBadge(hiddenCount, Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp))
         }
     }
 }
@@ -499,7 +487,6 @@ private fun AppRow(
     onMenu: (LaunchableApp, RowKind) -> Unit,
     onFocused: (LaunchableApp) -> Unit,
     firstItemFocus: FocusRequester?,
-    upTarget: FocusRequester?,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
 ) {
@@ -517,7 +504,6 @@ private fun AppRow(
             var tileModifier: Modifier = Modifier
             if (index == 0 && firstItemFocus != null) tileModifier = tileModifier.focusRequester(firstItemFocus)
             if (app.packageName == pendingFocus) tileModifier = tileModifier.focusRequester(pendingRequester)
-            if (upTarget != null) tileModifier = tileModifier.focusProperties { up = upTarget }
             AppTile(
                 app = app,
                 size = size,
