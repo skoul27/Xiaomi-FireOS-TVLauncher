@@ -23,6 +23,8 @@ data class LauncherPrefs(
     val allOrder: List<String> = emptyList(),
     /** Set once the default streaming apps have been pinned, so unpinning them sticks. */
     val seeded: Boolean = false,
+    /** Color button that brings the launcher to the front from any app; null turns it off. */
+    val shortcutKey: ColorKey? = ColorKey.Blue,
 )
 
 private val Context.launcherDataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher")
@@ -41,6 +43,7 @@ class LauncherPrefsStore(context: Context) {
             stored[Hidden] = next.hidden
             stored[AllOrder] = next.allOrder.joinToString(Separator)
             stored[Seeded] = next.seeded
+            stored[ShortcutKey] = next.shortcutKey?.name ?: ShortcutOff
         }
     }
 
@@ -49,6 +52,9 @@ class LauncherPrefsStore(context: Context) {
         hidden = this[Hidden].orEmpty(),
         allOrder = this[AllOrder].toPackageList(),
         seeded = this[Seeded] ?: false,
+        shortcutKey = this[ShortcutKey].let { stored ->
+            if (stored == null) ColorKey.Blue else ColorKey.entries.firstOrNull { it.name == stored }
+        },
     )
 
     private fun String?.toPackageList(): List<String> =
@@ -61,5 +67,7 @@ class LauncherPrefsStore(context: Context) {
         val Hidden = stringSetPreferencesKey("hidden")
         val AllOrder = stringPreferencesKey("all_order")
         val Seeded = booleanPreferencesKey("seeded")
+        val ShortcutKey = stringPreferencesKey("shortcut_key")
+        const val ShortcutOff = "off"
     }
 }

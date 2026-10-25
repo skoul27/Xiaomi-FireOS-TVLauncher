@@ -39,6 +39,9 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,8 +53,10 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
+import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.LauncherUi
+import com.shivam.tvlauncher.RemoteShortcut
 import com.shivam.tvlauncher.RowKind
 import com.shivam.tvlauncher.SystemShortcut
 import kotlinx.coroutines.flow.first
@@ -69,6 +74,8 @@ interface LauncherActions {
     fun openAppInfo(app: LaunchableApp)
     fun uninstall(app: LaunchableApp)
     fun openShortcut(shortcut: SystemShortcut)
+    fun refreshApps()
+    fun setShortcutKey(key: ColorKey?)
 }
 
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
@@ -83,7 +90,13 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: Int, actions: LauncherActions) {
+fun HomeScreen(
+    ui: LauncherUi?,
+    shortcuts: List<SystemShortcut>,
+    remoteShortcut: RemoteShortcut,
+    homePresses: Int,
+    actions: LauncherActions,
+) {
     val scope = rememberCoroutineScope()
     val animate = LocalAnimationsEnabled.current
     val backdrop = remember { BackdropState(scope) }
@@ -91,6 +104,7 @@ fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: In
     val initialFocus = remember { FocusRequester() }
     val openButton = remember { FocusRequester() }
     val settingsButton = remember { FocusRequester() }
+    val allApps = remember { FocusRequester() }
     val scroll = rememberScrollState()
     val scrollMargin = with(LocalDensity.current) { SafeArea.Horizontal.toPx() }
     val rowScrollSpec = remember(scrollMargin, animate) { ComfortableScrollSpec(scrollMargin, animate) }
@@ -120,7 +134,22 @@ fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: In
     // Leanback devices default to a "pivot" spec that parks focus 30% down the screen. The page
     // scroll is driven explicitly by which section has focus, so it opts out; rows override it.
     CompositionLocalProvider(LocalBringIntoViewSpec provides NoScrollSpec) {
-        Box(Modifier.fillMaxSize()) {
+        // Color buttons, from wherever focus is. Acts on the press; the release is just swallowed.
+        Box(
+            Modifier.fillMaxSize().onKeyEvent { event ->
+                val color = ColorKey.fromKeyCode(event.nativeKeyEvent.keyCode) ?: return@onKeyEvent false
+                if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
+                    when (color) {
+                        ColorKey.Blue -> runCatching { allApps.requestFocus() }
+                        ColorKey.Green -> showSystem = true
+                        // The dialog closes itself on Yellow, so this toggles.
+                        ColorKey.Yellow -> if (!ui?.hidden.isNullOrEmpty()) showHidden = true
+                        ColorKey.Red -> actions.refreshApps()
+                    }
+                }
+                true
+            },
+        ) {
             Backdrop(backdrop, Modifier.fillMaxSize())
             BackdropDriver(hero, backdrop)
 
@@ -173,6 +202,7 @@ fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: In
                                 ui.all, RowKind.All, TileSize.Small, actions, openMenu, showInHero,
                                 firstItemFocus = initialFocus.takeIf { ui.pinned.isEmpty() },
                                 upTarget = null,
+                                rowFocus = allApps,
                                 pendingFocus = pendingFocus?.takeIf { it.row == RowKind.All }?.packageName,
                                 onPendingFocusDone = focusDone,
                                 trailing = if (hiddenCount == 0) null else {
@@ -204,7 +234,9 @@ fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: In
             if (showSystem) {
                 SystemMenu(
                     shortcuts,
+                    remoteShortcut,
                     onOpen = { showSystem = false; actions.openShortcut(it) },
+                    onShortcutKeyChange = actions::setShortcutKey,
                     onDismiss = { showSystem = false },
                 )
             }
@@ -345,6 +377,8 @@ private fun AppRow(
     onFocused: (LaunchableApp) -> Unit,
     firstItemFocus: FocusRequester?,
     upTarget: FocusRequester?,
+    /** Focuses the row, landing on the tile last used in it. */
+    rowFocus: FocusRequester? = null,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
     trailing: (LazyListScope.() -> Unit)? = null,
@@ -357,7 +391,11 @@ private fun AppRow(
         contentPadding = PaddingValues(horizontal = SafeArea.Horizontal, vertical = RowBleed),
         horizontalArrangement = Arrangement.spacedBy(size.gap),
         // Coming back to a row lands on the tile you left.
-        modifier = Modifier.fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .fadingHorizontalEdges(EdgeFade)
+            .then(if (rowFocus != null) Modifier.focusRequester(rowFocus) else Modifier)
+            .focusRestorer(),
     ) {
         itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
             var tileModifier: Modifier = Modifier

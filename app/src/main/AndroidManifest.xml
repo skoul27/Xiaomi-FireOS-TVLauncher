@@ -59,5 +59,20 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Optional global shortcut: a color button brings the launcher to the front from any
+             app. Key filtering only; the user turns it on under Settings > Accessibility. -->
+        <service
+            android:name=".ShortcutKeyService"
+            android:exported="true"
+            android:label="@string/shortcut_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/shortcut_key_service" />
+        </service>
     </application>
 </manifest>

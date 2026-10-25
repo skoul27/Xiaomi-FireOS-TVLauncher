@@ -35,12 +35,16 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
+import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.LaunchableApp
+import com.shivam.tvlauncher.R
+import com.shivam.tvlauncher.RemoteShortcut
 import com.shivam.tvlauncher.SystemShortcut
 import com.shivam.tvlauncher.rememberAppArt
 
@@ -75,9 +79,18 @@ fun AppMenu(
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
-/** The gear button's panel: Fire OS settings screens that actually open on this device. */
+/**
+ * The gear button's panel: Fire OS settings screens that actually open on this device, then the
+ * remote shortcut, which cycles Off → Red → Green → Yellow → Blue on OK.
+ */
 @Composable
-fun SystemMenu(shortcuts: List<SystemShortcut>, onOpen: (SystemShortcut) -> Unit, onDismiss: () -> Unit) {
+fun SystemMenu(
+    shortcuts: List<SystemShortcut>,
+    remoteShortcut: RemoteShortcut,
+    onOpen: (SystemShortcut) -> Unit,
+    onShortcutKeyChange: (ColorKey?) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss) {
         PanelTitle("System")
@@ -92,15 +105,35 @@ fun SystemMenu(shortcuts: List<SystemShortcut>, onOpen: (SystemShortcut) -> Unit
         shortcuts.forEachIndexed { index, shortcut ->
             MenuItem(shortcut.label, if (index == 0) Modifier.focusRequester(first) else Modifier) { onOpen(shortcut) }
         }
+        val key = remoteShortcut.key
+        MenuItem(
+            "Remote shortcut: ${key?.label ?: "Off"}",
+            if (shortcuts.isEmpty()) Modifier.focusRequester(first) else Modifier,
+        ) {
+            val order = listOf(null) + ColorKey.entries
+            onShortcutKeyChange(order[(order.indexOf(key) + 1) % order.size])
+        }
+        Text(
+            when {
+                key == null -> "Color buttons still work inside the launcher."
+                remoteShortcut.serviceOn -> "${key.label} opens the launcher from any app."
+                else -> "Works inside the launcher. \"${stringResource(R.string.shortcut_service_label)}\" " +
+                    "isn't turned on, so other apps don't see it."
+            },
+            style = LauncherText.Caption,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
     }
-    LaunchedEffect(shortcuts.isEmpty()) { if (shortcuts.isNotEmpty()) runCatching { first.requestFocus() } }
+    // Keyed on emptiness so focus moves to the first screen once the list arrives.
+    LaunchedEffect(shortcuts.isEmpty()) { runCatching { first.requestFocus() } }
 }
 
 /** Lists hidden apps; selecting one shows it again. Closes itself when nothing is left. */
 @Composable
 fun HiddenAppsDialog(apps: List<LaunchableApp>, onUnhide: (LaunchableApp) -> Unit, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
-    MenuDialog(onDismiss, width = 440) {
+    MenuDialog(onDismiss, width = 440, closeKey = ColorKey.Yellow) {
         PanelTitle("Hidden apps")
         Text(
             "Select an app to show it again.",
@@ -137,8 +170,14 @@ fun HiddenAppsTile(count: Int, onClick: () -> Unit) {
     }
 }
 
+/** [closeKey]: a color button that closes the dialog, for panels that one also opens. */
 @Composable
-private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Composable ColumnScope.() -> Unit) {
+private fun MenuDialog(
+    onDismiss: () -> Unit,
+    width: Int = 360,
+    closeKey: ColorKey? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
@@ -148,6 +187,10 @@ private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Compos
                 // A long-press that opened this menu keeps sending OK repeats until released.
                 // Swallow them so letting go can't trigger whichever item has focus.
                 .onPreviewKeyEvent {
+                    if (closeKey != null && it.nativeKeyEvent.keyCode == closeKey.keyCode) {
+                        if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onDismiss()
+                        return@onPreviewKeyEvent true
+                    }
                     it.isSelectKey() && it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount > 0
                 },
             content = content,
