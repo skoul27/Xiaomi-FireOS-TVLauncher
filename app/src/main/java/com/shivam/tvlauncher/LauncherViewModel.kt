@@ -38,6 +38,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private val _shortcuts = MutableStateFlow<List<SystemShortcut>>(emptyList())
+
+    /** Settings screens that open on this device right now; re-checked on every refresh. */
+    val shortcuts: StateFlow<List<SystemShortcut>> = _shortcuts
+
     private var refreshJob: Job? = null
 
     /** Re-reads installed apps; cheap after the first run because art is cached. */
@@ -46,6 +51,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         refreshJob = viewModelScope.launch {
             val apps = withContext(Dispatchers.IO) { loadLaunchableApps(getApplication()) }
             installed.value = apps
+            _shortcuts.value = withContext(Dispatchers.IO) { availableSystemShortcuts(getApplication()) }
             val packages = apps.mapTo(HashSet()) { it.packageName }
             prefsStore.update {
                 if (it.seeded) it else it.copy(pinned = (it.pinned + defaultPinsFor(packages)).distinct(), seeded = true)

@@ -11,6 +11,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.shivam.tvlauncher.ui.HomeScreen
 import com.shivam.tvlauncher.ui.LauncherActions
@@ -41,7 +43,8 @@ class MainActivity : ComponentActivity() {
             "Can't uninstall ${app.label}",
         )
 
-        override fun openSystemSettings() = start(Intent(Settings.ACTION_SETTINGS), "Settings aren't available")
+        override fun openShortcut(shortcut: SystemShortcut) =
+            start(Intent(shortcut.intent), "${shortcut.label} isn't available")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,9 +52,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             LauncherTheme {
                 val ui by viewModel.ui.collectAsStateWithLifecycle()
-                HomeScreen(ui = ui, actions = actions)
+                val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
+                HomeScreen(ui = ui, shortcuts = shortcuts, homePresses = homePresses, actions = actions)
             }
         }
+    }
+
+    /** Counts Home presses that arrive while we're already the Home screen; the UI resets on each. */
+    private var homePresses by mutableIntStateOf(0)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.hasCategory(Intent.CATEGORY_HOME)) homePresses++
     }
 
     override fun onResume() {

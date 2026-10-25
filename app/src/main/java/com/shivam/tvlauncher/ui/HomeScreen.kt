@@ -53,6 +53,7 @@ import androidx.tv.material3.Text
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.LauncherUi
 import com.shivam.tvlauncher.RowKind
+import com.shivam.tvlauncher.SystemShortcut
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -67,7 +68,7 @@ interface LauncherActions {
     fun unhide(app: LaunchableApp)
     fun openAppInfo(app: LaunchableApp)
     fun uninstall(app: LaunchableApp)
-    fun openSystemSettings()
+    fun openShortcut(shortcut: SystemShortcut)
 }
 
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
@@ -82,7 +83,7 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(ui: LauncherUi?, actions: LauncherActions) {
+fun HomeScreen(ui: LauncherUi?, shortcuts: List<SystemShortcut>, homePresses: Int, actions: LauncherActions) {
     val scope = rememberCoroutineScope()
     val animate = LocalAnimationsEnabled.current
     val backdrop = remember { BackdropState(scope) }
@@ -95,6 +96,7 @@ fun HomeScreen(ui: LauncherUi?, actions: LauncherActions) {
     val rowScrollSpec = remember(scrollMargin, animate) { ComfortableScrollSpec(scrollMargin, animate) }
     var menu by remember { mutableStateOf<MenuTarget?>(null) }
     var showHidden by remember { mutableStateOf(false) }
+    var showSystem by remember { mutableStateOf(false) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
     var pendingFocus by remember { mutableStateOf<MenuTarget?>(null) }
     val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
@@ -127,7 +129,7 @@ fun HomeScreen(ui: LauncherUi?, actions: LauncherActions) {
                     TopBar(
                         settingsButton = {
                             SettingsButton(
-                                onClick = actions::openSystemSettings,
+                                onClick = { showSystem = true },
                                 modifier = Modifier.focusRequester(settingsButton).focusProperties { down = openButton },
                             )
                         },
@@ -198,11 +200,32 @@ fun HomeScreen(ui: LauncherUi?, actions: LauncherActions) {
                     )
                 }
             }
+            // Outside the ui check: Settings must be reachable even if the app list never loads.
+            if (showSystem) {
+                SystemMenu(
+                    shortcuts,
+                    onOpen = { showSystem = false; actions.openShortcut(it) },
+                    onDismiss = { showSystem = false },
+                )
+            }
         }
     }
 
     // Home has nothing to go back to: Back returns to My Apps (on the tile last used) instead of leaving.
     BackHandler {
+        scrollTo(true)
+        runCatching { initialFocus.requestFocus() }
+    }
+
+    // Home pressed while already home: close any overlay and go back to the start of My Apps.
+    val windowInfo = LocalWindowInfo.current
+    LaunchedEffect(homePresses) {
+        if (homePresses == 0) return@LaunchedEffect
+        menu = null
+        showHidden = false
+        showSystem = false
+        // A closing dialog hands focus back to our window; wait for that, or it overrides us.
+        snapshotFlow { windowInfo.isWindowFocused }.first { it }
         scrollTo(true)
         runCatching { initialFocus.requestFocus() }
     }

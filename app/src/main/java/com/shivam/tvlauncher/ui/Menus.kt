@@ -41,6 +41,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.LaunchableApp
+import com.shivam.tvlauncher.SystemShortcut
 import com.shivam.tvlauncher.rememberAppArt
 
 enum class MenuAction { TogglePin, MoveLeft, MoveRight, Hide, AppInfo, Uninstall }
@@ -72,6 +73,27 @@ fun AppMenu(
         if (!app.isSystem) MenuItem("Uninstall") { onAction(MenuAction.Uninstall) }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/** The gear button's panel: Fire OS settings screens that actually open on this device. */
+@Composable
+fun SystemMenu(shortcuts: List<SystemShortcut>, onOpen: (SystemShortcut) -> Unit, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    MenuDialog(onDismiss) {
+        PanelTitle("System")
+        if (shortcuts.isEmpty()) {
+            Text(
+                "No settings screens are available right now.",
+                style = LauncherText.Body,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        shortcuts.forEachIndexed { index, shortcut ->
+            MenuItem(shortcut.label, if (index == 0) Modifier.focusRequester(first) else Modifier) { onOpen(shortcut) }
+        }
+    }
+    LaunchedEffect(shortcuts.isEmpty()) { if (shortcuts.isNotEmpty()) runCatching { first.requestFocus() } }
 }
 
 /** Lists hidden apps; selecting one shows it again. Closes itself when nothing is left. */

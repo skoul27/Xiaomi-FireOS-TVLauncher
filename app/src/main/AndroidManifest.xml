@@ -20,6 +20,13 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
         </intent>
+        <!-- The settings screens the gear menu checks for before offering them. -->
+        <intent><action android:name="android.settings.SETTINGS" /></intent>
+        <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.APPLICATION_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.DEVICE_INFO_SETTINGS" /></intent>
+        <package android:name="com.amazon.tv.settings.v2" />
     </queries>
 
     <application
@@ -34,6 +41,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:stateNotNeeded="true"
             android:screenOrientation="landscape">
 
             <intent-filter>
@@ -42,8 +50,9 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
-            <!-- Ready for Phase 2 (Home replacement). Fire OS keeps routing the Home
-                 button to Amazon's launcher, so this is inert for now. -->
+            <!-- Lets the system use this as the Home app. Fire OS routes Home to Amazon's
+                 launcher while that is enabled; see RECOVERY.md. Pressing Home here
+                 arrives as onNewIntent and resets the screen. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
