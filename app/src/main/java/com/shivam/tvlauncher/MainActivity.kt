@@ -58,6 +58,13 @@ class MainActivity : ComponentActivity() {
         override fun setShortcutKey(key: ColorKey?) = viewModel.setShortcutKey(key)
         override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
         override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
+        override fun recheckShortcut() {
+            shortcutService = readShortcutService()
+        }
+        override fun exportBackup() = viewModel.exportBackup()
+        override fun importBackup() = viewModel.checkImport()
+        override fun confirmImport() = viewModel.confirmImport()
+        override fun dismissBackup() = viewModel.dismissBackup()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,12 +74,14 @@ class MainActivity : ComponentActivity() {
             LauncherTheme(accent = Accent.named(settings.theme), animationsEnabled = settings.animations) {
                 val ui by viewModel.ui.collectAsStateWithLifecycle()
                 val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
+                val backup by viewModel.backup.collectAsStateWithLifecycle()
                 HomeScreen(
                     ui = ui,
                     shortcuts = shortcuts,
                     remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutService.on, shortcutService.enableCommands),
                     homePresses = homePresses,
                     opens = opens,
+                    backup = backup,
                     actions = actions,
                 )
             }

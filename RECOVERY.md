@@ -52,6 +52,30 @@ The launcher checks this for you: when the chosen color button's service isn't e
 System panel (gear) shows a notice with these two commands already filled in from the current
 list. The launcher only reads the setting; it never changes it.
 
+## Backing up and restoring your setup
+
+Your pins and their order, hidden apps, All apps order, theme, animations and remote shortcut can
+be saved as one JSON file. Fire OS doesn't let adb into the app's folder, and the launcher has no
+storage permission, so the file goes through a small bridge in the launcher that only answers adb.
+
+Back up (on the TV: gear → Launcher settings → Export backup, then on the computer):
+
+```sh
+adb shell content read --uri content://com.shivam.tvlauncher.backup/launcher-backup.json > launcher-backup.json
+```
+
+Restore (on the computer, then on the TV: gear → Launcher settings → Import backup):
+
+```sh
+adb shell content write --uri content://com.shivam.tvlauncher.backup/launcher-backup.json < launcher-backup.json
+```
+
+Import checks the whole file first and changes nothing if anything is wrong; a valid file shows
+what it contains and asks before replacing your setup. Apps in the backup that aren't installed
+are kept, so they reappear if you install them later. The file is plain JSON; editing it by hand
+is fine as long as it stays valid. Uninstalling the launcher deletes the copy on the TV, so keep
+the one on your computer.
+
 ## What this depends on
 
 - **ADB debugging must stay on.** It is under Device & Software → Developer Options, which this

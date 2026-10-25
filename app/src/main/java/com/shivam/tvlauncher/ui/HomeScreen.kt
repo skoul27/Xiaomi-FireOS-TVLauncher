@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
+import com.shivam.tvlauncher.BackupState
 import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.LauncherUi
@@ -80,6 +81,13 @@ interface LauncherActions {
     fun setShortcutKey(key: ColorKey?)
     fun setTheme(accent: Accent)
     fun setAnimations(enabled: Boolean)
+    /** Re-reads whether the shortcut service is on; the panels call it as they open. */
+    fun recheckShortcut()
+    fun exportBackup()
+    /** Validates the backup file; a valid one comes back as [BackupState.ConfirmImport]. */
+    fun importBackup()
+    fun confirmImport()
+    fun dismissBackup()
 }
 
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
@@ -107,6 +115,7 @@ fun HomeScreen(
     remoteShortcut: RemoteShortcut,
     homePresses: Int,
     opens: Int,
+    backup: BackupState?,
     actions: LauncherActions,
 ) {
     val scope = rememberCoroutineScope()
@@ -235,13 +244,24 @@ fun HomeScreen(
                 accent = LocalAccentTheme.current,
                 animations = animate,
                 remoteShortcut = remoteShortcut,
+                backupMessage = (backup as? BackupState.Message)?.text,
                 actions = actions,
-                onDismiss = { showSettings = false },
+                onDismiss = {
+                    showSettings = false
+                    actions.dismissBackup()
+                },
             )
+            (backup as? BackupState.ConfirmImport)?.let { pending ->
+                ImportConfirmMenu(pending.summary, onConfirm = actions::confirmImport, onCancel = actions::dismissBackup)
+            }
         }
 
         OpenVeil(opens)
     }
+
+    // The status can change while we're in front (a package update briefly drops the service),
+    // so read it fresh whenever a panel that shows it opens.
+    LaunchedEffect(showSystem, showSettings) { if (showSystem || showSettings) actions.recheckShortcut() }
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
     BackHandler { focusStart() }

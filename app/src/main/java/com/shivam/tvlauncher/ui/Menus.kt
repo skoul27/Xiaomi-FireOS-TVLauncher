@@ -148,11 +148,12 @@ fun LauncherSettingsMenu(
     accent: Accent,
     animations: Boolean,
     remoteShortcut: RemoteShortcut,
+    backupMessage: String?,
     actions: LauncherActions,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
-    MenuDialog(onDismiss, width = 420) {
+    MenuDialog(onDismiss, width = 460) {
         PanelTitle("Launcher settings")
         SettingItem("Theme", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first)) {
             actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
@@ -174,8 +175,34 @@ fun LauncherSettingsMenu(
             color = LauncherColors.TextSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
+        MenuItem("Export backup", onClick = actions::exportBackup)
+        MenuItem("Import backup", onClick = actions::importBackup)
+        Text(
+            backupMessage ?: "Export saves a file you can copy to a computer with adb; see RECOVERY.md.",
+            style = LauncherText.Caption,
+            color = if (backupMessage != null) LauncherColors.TextPrimary else LauncherColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/** Shows what a valid backup holds before it replaces anything. Cancel has focus first. */
+@Composable
+fun ImportConfirmMenu(summary: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val cancel = remember { FocusRequester() }
+    MenuDialog(onCancel, width = 460) {
+        PanelTitle("Import backup?")
+        Text(
+            summary,
+            style = LauncherText.Body,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+        )
+        MenuItem("Cancel", Modifier.focusRequester(cancel), onClick = onCancel)
+        MenuItem("Replace my setup", onClick = onConfirm)
+    }
+    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
 }
 
 /** "Label        Value" on one row, with an optional colour swatch before the value. */

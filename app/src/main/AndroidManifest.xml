@@ -74,5 +74,12 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/shortcut_key_service" />
         </service>
+
+        <!-- Lets adb copy the backup file in and out (Fire OS blocks adb from Android/data).
+             Exported so the shell can reach it; the provider refuses every caller but adb. -->
+        <provider
+            android:name=".BackupFileProvider"
+            android:authorities="com.shivam.tvlauncher.backup"
+            android:exported="true" />
     </application>
 </manifest>
