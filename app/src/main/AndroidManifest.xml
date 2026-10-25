@@ -27,6 +27,8 @@
         <intent><action android:name="android.settings.APPLICATION_SETTINGS" /></intent>
         <intent><action android:name="android.settings.DEVICE_INFO_SETTINGS" /></intent>
         <package android:name="com.amazon.tv.settings.v2" />
+        <!-- Screen mirroring, offered as the Cast Screen tile. -->
+        <package android:name="com.amazon.cast.sink" />
     </queries>
 
     <application

@@ -42,7 +42,7 @@ fun availableSystemShortcuts(context: Context): List<SystemShortcut> =
  * Fire OS settings screens are exported but guarded by a signature permission
  * (com.amazon.tv.permission.LAUNCHER_SETTINGS) that adb's shell holds and apps don't.
  */
-private fun Context.opensDirectly(intent: Intent): Boolean {
+internal fun Context.opensDirectly(intent: Intent): Boolean {
     val activity = runCatching { packageManager.resolveActivity(intent, 0)?.activityInfo }.getOrNull() ?: return false
     val permission = activity.permission
     return activity.exported &&

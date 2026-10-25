@@ -50,6 +50,10 @@ class MainActivity : ComponentActivity() {
             start(Intent(shortcut.intent), "${shortcut.label} isn't available")
         }
 
+        override fun openWifiSettings() {
+            start(Intent(Settings.ACTION_WIFI_SETTINGS), "Wi-Fi settings aren't available")
+        }
+
         override fun refreshApps() {
             viewModel.refresh()
             Toast.makeText(this@MainActivity, "App list refreshed", Toast.LENGTH_SHORT).show()

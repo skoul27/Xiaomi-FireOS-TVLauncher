@@ -32,15 +32,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Network status, time and date, and the settings button, top-right. */
+/** Network status (opens Wi-Fi settings), time and date, and the settings button, top-right. */
 @Composable
-fun TopBar(settingsButton: @Composable () -> Unit, modifier: Modifier = Modifier) {
+fun TopBar(networkButton: @Composable () -> Unit, settingsButton: @Composable () -> Unit, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End,
         modifier = modifier.fillMaxWidth().height(TopBarHeight),
     ) {
-        NetworkPill()
+        networkButton()
         Spacer(Modifier.width(22.dp))
         Clock()
         Spacer(Modifier.width(22.dp))
@@ -63,15 +63,16 @@ fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun NetworkPill() {
+fun NetworkButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
     val flow = remember(context) { networkStatusFlow(context) }
     val status by flow.collectAsStateWithLifecycle(NetworkStatus(NetworkKind.None))
-    val color = LauncherColors.TextPrimary
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.height(36.dp).glass(PillShape).padding(horizontal = 14.dp),
-    ) {
+    GlassButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        modifier = modifier.height(36.dp),
+    ) { focused ->
+        val color = buttonContentColor(focused)
         when (status.kind) {
             NetworkKind.Ethernet -> EthernetIcon(color)
             NetworkKind.None -> WifiIcon(color, level = -1)
@@ -87,7 +88,7 @@ private fun NetworkPill() {
                 else -> "Connected"
             },
             style = LauncherText.Caption,
-            color = if (status.kind == NetworkKind.None || !status.online) LauncherColors.TextSecondary else color,
+            color = if (!focused && (status.kind == NetworkKind.None || !status.online)) LauncherColors.TextSecondary else color,
         )
     }
 }

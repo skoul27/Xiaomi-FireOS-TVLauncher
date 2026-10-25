@@ -77,6 +77,7 @@ interface LauncherActions {
     fun openAppInfo(app: LaunchableApp)
     fun uninstall(app: LaunchableApp)
     fun openShortcut(shortcut: SystemShortcut)
+    fun openWifiSettings()
     fun refreshApps()
     fun setShortcutKey(key: ColorKey?)
     fun setTheme(accent: Accent)
@@ -210,6 +211,12 @@ fun HomeScreen(
         }
 
         TopBar(
+            networkButton = {
+                NetworkButton(
+                    onClick = actions::openWifiSettings,
+                    modifier = Modifier.focusProperties { down = openButton },
+                )
+            },
             settingsButton = {
                 SettingsButton(
                     onClick = { showSystem = true },
