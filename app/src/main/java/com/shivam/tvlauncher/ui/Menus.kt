@@ -61,6 +61,8 @@ fun AppMenu(
     canMoveLeft: Boolean,
     canMoveRight: Boolean,
     onAction: (MenuAction) -> Unit,
+    /** False where order isn't the user's (the All apps list is alphabetical). */
+    showMove: Boolean = true,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
@@ -70,8 +72,10 @@ fun AppMenu(
             onAction(MenuAction.TogglePin)
         }
         // Always present (just inert at the ends) so focus never lands on a vanished item.
-        MenuItem("Move left", enabled = canMoveLeft) { onAction(MenuAction.MoveLeft) }
-        MenuItem("Move right", enabled = canMoveRight) { onAction(MenuAction.MoveRight) }
+        if (showMove) {
+            MenuItem("Move left", enabled = canMoveLeft) { onAction(MenuAction.MoveLeft) }
+            MenuItem("Move right", enabled = canMoveRight) { onAction(MenuAction.MoveRight) }
+        }
         MenuItem("Hide") { onAction(MenuAction.Hide) }
         MenuItem("App info") { onAction(MenuAction.AppInfo) }
         if (!app.isSystem) MenuItem("Uninstall") { onAction(MenuAction.Uninstall) }
@@ -129,55 +133,8 @@ fun SystemMenu(
     LaunchedEffect(shortcuts.isEmpty()) { runCatching { first.requestFocus() } }
 }
 
-/** Lists hidden apps; selecting one shows it again. Closes itself when nothing is left. */
 @Composable
-fun HiddenAppsDialog(apps: List<LaunchableApp>, onUnhide: (LaunchableApp) -> Unit, onDismiss: () -> Unit) {
-    val first = remember { FocusRequester() }
-    MenuDialog(onDismiss, width = 440, closeKey = ColorKey.Yellow) {
-        PanelTitle("Hidden apps")
-        Text(
-            "Select an app to show it again.",
-            style = LauncherText.Caption,
-            color = LauncherColors.TextSecondary,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
-        )
-        LazyColumn(modifier = Modifier.heightIn(max = 340.dp)) {
-            itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
-                HiddenAppRow(app, if (index == 0) Modifier.focusRequester(first) else Modifier) { onUnhide(app) }
-            }
-        }
-    }
-    // Re-seat focus whenever the list shrinks, since the focused row may have just been removed.
-    LaunchedEffect(apps.size) {
-        if (apps.isEmpty()) onDismiss() else runCatching { first.requestFocus() }
-    }
-}
-
-/** The tile at the end of All Apps that opens [HiddenAppsDialog]. */
-@Composable
-fun HiddenAppsTile(count: Int, onClick: () -> Unit) {
-    GlassTile(
-        size = TileSize.Small,
-        label = "Hidden apps",
-        art = null,
-        onClick = onClick,
-        onLongClick = null,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("Hidden", style = LauncherText.Button, color = LauncherColors.TextPrimary)
-            Text(if (count == 1) "1 app" else "$count apps", style = LauncherText.Caption, color = LauncherColors.TextSecondary)
-        }
-    }
-}
-
-/** [closeKey]: a color button that closes the dialog, for panels that one also opens. */
-@Composable
-private fun MenuDialog(
-    onDismiss: () -> Unit,
-    width: Int = 360,
-    closeKey: ColorKey? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
+private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
@@ -187,10 +144,6 @@ private fun MenuDialog(
                 // A long-press that opened this menu keeps sending OK repeats until released.
                 // Swallow them so letting go can't trigger whichever item has focus.
                 .onPreviewKeyEvent {
-                    if (closeKey != null && it.nativeKeyEvent.keyCode == closeKey.keyCode) {
-                        if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onDismiss()
-                        return@onPreviewKeyEvent true
-                    }
                     it.isSelectKey() && it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount > 0
                 },
             content = content,

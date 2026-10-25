@@ -42,6 +42,8 @@ object Glass {
     val BorderFocused = Color.White.copy(alpha = 0.85f)
     val Highlight = Color.White.copy(alpha = 0.10f)
     val PanelFill = Color(0xEB16181D)
+    /** The big list pop-ups cover most of the screen, so they hide what's under them. */
+    val PopupFill = Color(0xFF16181D)
     /** Tiles show this while their art loads, and behind transparent art. */
     val TileBase = Color(0xFF1A1C22)
 }

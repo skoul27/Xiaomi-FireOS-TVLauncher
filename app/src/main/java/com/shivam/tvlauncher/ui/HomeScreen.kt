@@ -2,23 +2,20 @@ package com.shivam.tvlauncher.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -81,13 +78,20 @@ interface LauncherActions {
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
 private val RowBleed = 28.dp
 private val EdgeFade = 40.dp
-
-/** What the safe area still needs below a row once its own bleed is counted. */
-private val BottomGap = (SafeArea.Vertical - RowBleed).coerceAtLeast(0.dp)
 private val SectionTitleHeight = 22.dp
+
+/** Label line under a tile: 12dp gap plus one line of [LauncherText.Label]. */
+private val LabelHeight = 32.dp
+private val MyAppsRowHeight = TileSize.Large.height + RowBleed * 2 + LabelHeight
 
 private data class MenuTarget(val packageName: String, val row: RowKind)
 
+private enum class AppsPopup { All, Hidden }
+
+/**
+ * One screen, no page scroll: the hero fills whatever the My Apps row and the All apps / Hidden
+ * apps buttons below it leave; the top bar floats top-right over the hero's empty corner.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
@@ -104,180 +108,160 @@ fun HomeScreen(
     val initialFocus = remember { FocusRequester() }
     val openButton = remember { FocusRequester() }
     val settingsButton = remember { FocusRequester() }
-    val allApps = remember { FocusRequester() }
-    val scroll = rememberScrollState()
+    val allAppsButton = remember { FocusRequester() }
     val scrollMargin = with(LocalDensity.current) { SafeArea.Horizontal.toPx() }
     val rowScrollSpec = remember(scrollMargin, animate) { ComfortableScrollSpec(scrollMargin, animate) }
     var menu by remember { mutableStateOf<MenuTarget?>(null) }
-    var showHidden by remember { mutableStateOf(false) }
+    var popup by remember { mutableStateOf<AppsPopup?>(null) }
     var showSystem by remember { mutableStateOf(false) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
     var pendingFocus by remember { mutableStateOf<MenuTarget?>(null) }
     val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
     val focusDone = remember { { pendingFocus = null } }
     val showInHero = remember { { app: LaunchableApp -> hero.app = app } }
-    val scrollTo = remember(animate) {
-        { top: Boolean ->
-            scope.launch {
-                val target = if (top) 0 else scroll.maxValue
-                if (animate) scroll.animateScrollTo(target) else scroll.scrollTo(target)
-            }
-            Unit
-        }
+    val hasPins = ui?.pinned?.isNotEmpty() == true
+    // My Apps' first tile, or the All apps button when there are no pins.
+    val focusStart = remember(hasPins) {
+        { runCatching { (if (hasPins) initialFocus else allAppsButton).requestFocus() }; Unit }
     }
 
-    // The My Apps row sits on the bottom safe edge; the hero takes whatever is left above it.
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val myAppsHeight = SectionTitleHeight + RowBleed * 2 + TileSize.Large.height + LabelHeight
-    val heroHeight = screenHeight - SafeArea.Vertical - TopBarHeight - myAppsHeight - BottomGap
-
-    // Leanback devices default to a "pivot" spec that parks focus 30% down the screen. The page
-    // scroll is driven explicitly by which section has focus, so it opts out; rows override it.
-    CompositionLocalProvider(LocalBringIntoViewSpec provides NoScrollSpec) {
-        // Color buttons, from wherever focus is. Acts on the press; the release is just swallowed.
-        Box(
-            Modifier.fillMaxSize().onKeyEvent { event ->
-                val color = ColorKey.fromKeyCode(event.nativeKeyEvent.keyCode) ?: return@onKeyEvent false
-                if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
-                    when (color) {
-                        ColorKey.Blue -> runCatching { allApps.requestFocus() }
-                        ColorKey.Green -> showSystem = true
-                        // The dialog closes itself on Yellow, so this toggles.
-                        ColorKey.Yellow -> if (!ui?.hidden.isNullOrEmpty()) showHidden = true
-                        ColorKey.Red -> actions.refreshApps()
-                    }
+    // Color buttons, from wherever focus is. Acts on the press; the release is just swallowed.
+    // While a pop-up is open its own window gets the keys; each closes on the button that opened it.
+    Box(
+        Modifier.fillMaxSize().onKeyEvent { event ->
+            val color = ColorKey.fromKeyCode(event.nativeKeyEvent.keyCode) ?: return@onKeyEvent false
+            if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
+                when (color) {
+                    ColorKey.Blue -> if (ui != null) popup = AppsPopup.All
+                    ColorKey.Green -> showSystem = true
+                    ColorKey.Yellow -> if (ui != null) popup = AppsPopup.Hidden
+                    ColorKey.Red -> actions.refreshApps()
                 }
-                true
-            },
-        ) {
-            Backdrop(backdrop, Modifier.fillMaxSize())
-            BackdropDriver(hero, backdrop)
+            }
+            true
+        },
+    ) {
+        Backdrop(backdrop, Modifier.fillMaxSize())
+        BackdropDriver(hero, backdrop)
 
-            Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
-                Column(Modifier.onFocusChanged { if (it.hasFocus) scrollTo(true) }) {
-                    TopBar(
-                        settingsButton = {
-                            SettingsButton(
-                                onClick = { showSystem = true },
-                                modifier = Modifier.focusRequester(settingsButton).focusProperties { down = openButton },
-                            )
-                        },
-                        modifier = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal),
+        Column(Modifier.fillMaxSize()) {
+            Hero(
+                state = hero,
+                onOpen = actions::launch,
+                openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 26.dp),
+            )
+
+            SectionTitle("My Apps")
+            when {
+                ui == null -> Spacer(Modifier.height(MyAppsRowHeight))
+                ui.pinned.isEmpty() -> EmptyMyAppsHint()
+                else -> CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrollSpec) {
+                    AppRow(
+                        ui.pinned, RowKind.Pinned, TileSize.Large, actions, openMenu, showInHero,
+                        firstItemFocus = initialFocus,
+                        upTarget = openButton,
+                        pendingFocus = pendingFocus?.packageName,
+                        onPendingFocusDone = focusDone,
                     )
-                    Hero(
-                        state = hero,
-                        onOpen = actions::launch,
-                        openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
-                        modifier = Modifier
-                            .height(heroHeight)
-                            // Fades as the page scrolls to All Apps, so its top edge never sits clipped.
-                            .graphicsLayer { alpha = (1f - 1.6f * scroll.value / heroHeight.toPx().coerceAtLeast(1f)).coerceIn(0f, 1f) }
-                            .padding(start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 26.dp),
-                    )
-
-                    SectionTitle("My Apps")
-                    if (ui != null) {
-                        CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrollSpec) {
-                            if (ui.pinned.isEmpty()) {
-                                EmptyMyAppsHint()
-                            } else {
-                                AppRow(
-                                    ui.pinned, RowKind.Pinned, TileSize.Large, actions, openMenu, showInHero,
-                                    firstItemFocus = initialFocus,
-                                    upTarget = openButton,
-                                    pendingFocus = pendingFocus?.takeIf { it.row == RowKind.Pinned }?.packageName,
-                                    onPendingFocusDone = focusDone,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (ui != null) {
-                    Column(Modifier.onFocusChanged { if (it.hasFocus) scrollTo(false) }) {
-                        SectionTitle("All Apps")
-                        val hiddenCount = ui.hidden.size
-                        CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrollSpec) {
-                            AppRow(
-                                ui.all, RowKind.All, TileSize.Small, actions, openMenu, showInHero,
-                                firstItemFocus = initialFocus.takeIf { ui.pinned.isEmpty() },
-                                upTarget = null,
-                                rowFocus = allApps,
-                                pendingFocus = pendingFocus?.takeIf { it.row == RowKind.All }?.packageName,
-                                onPendingFocusDone = focusDone,
-                                trailing = if (hiddenCount == 0) null else {
-                                    { item(key = "hidden-apps") { HiddenAppsTile(hiddenCount) { showHidden = true } } }
-                                },
-                            )
-                        }
-                        Spacer(Modifier.height(BottomGap))
-                    }
                 }
             }
 
-            if (ui != null) {
-                menu?.let { target ->
-                    AppMenuFor(ui, target, actions, onFocusMove = { pendingFocus = it }, onDismiss = { menu = null })
-                }
-                if (showHidden) {
-                    HiddenAppsDialog(
-                        ui.hidden,
-                        onUnhide = { app ->
-                            actions.unhide(app)
-                            pendingFocus = MenuTarget(app.packageName, RowKind.All)
-                        },
-                        onDismiss = { showHidden = false },
-                    )
-                }
-            }
-            // Outside the ui check: Settings must be reachable even if the app list never loads.
-            if (showSystem) {
-                SystemMenu(
-                    shortcuts,
-                    remoteShortcut,
-                    onOpen = { showSystem = false; actions.openShortcut(it) },
-                    onShortcutKeyChange = actions::setShortcutKey,
-                    onDismiss = { showSystem = false },
+            AppsButtons(
+                hiddenCount = ui?.hidden?.size ?: 0,
+                allAppsButton = allAppsButton,
+                onAllApps = { if (ui != null) popup = AppsPopup.All },
+                onHidden = { if (ui != null) popup = AppsPopup.Hidden },
+            )
+            Spacer(Modifier.height(SafeArea.Vertical))
+        }
+
+        TopBar(
+            settingsButton = {
+                SettingsButton(
+                    onClick = { showSystem = true },
+                    modifier = Modifier.focusRequester(settingsButton).focusProperties { down = openButton },
                 )
+            },
+            modifier = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal),
+        )
+
+        if (ui != null) {
+            menu?.let { target ->
+                AppMenuFor(ui, target, actions, onFocusMove = { pendingFocus = it }, onDismiss = { menu = null })
             }
+            when (popup) {
+                AppsPopup.All -> AllAppsPopup(ui, actions, onDismiss = { popup = null })
+                AppsPopup.Hidden -> HiddenAppsPopup(ui.hidden, onUnhide = actions::unhide, onDismiss = { popup = null })
+                null -> {}
+            }
+        }
+        // Outside the ui check: Settings must be reachable even if the app list never loads.
+        if (showSystem) {
+            SystemMenu(
+                shortcuts,
+                remoteShortcut,
+                onOpen = { showSystem = false; actions.openShortcut(it) },
+                onShortcutKeyChange = actions::setShortcutKey,
+                onDismiss = { showSystem = false },
+            )
         }
     }
 
-    // Home has nothing to go back to: Back returns to My Apps (on the tile last used) instead of leaving.
-    BackHandler {
-        scrollTo(true)
-        runCatching { initialFocus.requestFocus() }
-    }
+    // Home has nothing to go back to: Back returns to the start instead of leaving.
+    BackHandler { focusStart() }
 
     // Home pressed while already home: close any overlay and go back to the start of My Apps.
     val windowInfo = LocalWindowInfo.current
     LaunchedEffect(homePresses) {
         if (homePresses == 0) return@LaunchedEffect
         menu = null
-        showHidden = false
+        popup = null
         showSystem = false
         // A closing dialog hands focus back to our window; wait for that, or it overrides us.
         snapshotFlow { windowInfo.isWindowFocused }.first { it }
-        scrollTo(true)
-        runCatching { initialFocus.requestFocus() }
+        focusStart()
     }
 
-    // Start on the first tile. Only keyed on "loaded" so a resume keeps the user's place.
-    LaunchedEffect(ui != null) {
+    // Start on the first tile, and re-seat focus if My Apps empties under it. Keyed on
+    // "loaded" and "has pins" only, so a resume keeps the user's place.
+    LaunchedEffect(ui != null, hasPins) {
         if (ui != null) {
             if (hero.app == null) hero.app = ui.pinned.firstOrNull() ?: ui.all.firstOrNull()
-            runCatching { initialFocus.requestFocus() }
+            snapshotFlow { windowInfo.isWindowFocused }.first { it }
+            withFrameNanos { }
+            focusStart()
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
-private val NoScrollSpec = object : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float) = 0f
+/** "All apps" and "Hidden apps", side by side at bottom centre. Down from My Apps lands here. */
+@Composable
+private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().height(AppsButtonHeight),
+    ) {
+        SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
+        SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
+    }
 }
 
-/** Label line under a tile: 12dp gap plus one line of [LauncherText.Label]. */
-private val LabelHeight = 32.dp
+private val AppsButtonHeight = 38.dp
+
+@Composable
+private fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    GlassButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        modifier = modifier.height(AppsButtonHeight),
+    ) { focused ->
+        Text(text, style = LauncherText.Label, color = buttonContentColor(focused))
+    }
+}
 
 /** Resolves the target against the live UI so the menu reflects moves as they happen. */
 @Composable
@@ -297,18 +281,12 @@ private fun AppMenuFor(
     }
     val isPinned = ui.pinned.any { it.packageName == app.packageName }
 
-    // The tile is about to leave this row: hand focus to its neighbour, or to All Apps if
-    // My Apps empties, instead of letting it fall back to the first tile on screen.
+    // The tile is about to leave this row: hand focus to its neighbour instead of letting it
+    // fall back to the first focusable thing on screen.
     fun focusNeighbour() {
         val neighbour = row.getOrNull(index + 1) ?: row.getOrNull(index - 1)
-        onFocusMove(
-            when {
-                neighbour != null -> MenuTarget(neighbour.packageName, target.row)
-                target.row == RowKind.Pinned -> ui.all.firstOrNull { it.packageName != app.packageName }
-                    ?.let { MenuTarget(it.packageName, RowKind.All) }
-                else -> null
-            },
-        )
+        // Null when the row empties: the screen then moves focus to the All apps button.
+        onFocusMove(neighbour?.let { MenuTarget(it.packageName, target.row) })
     }
 
     AppMenu(
@@ -355,7 +333,7 @@ private fun EmptyMyAppsHint() {
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .fillMaxWidth()
-            .height(TileSize.Large.height + RowBleed * 2 + LabelHeight)
+            .height(MyAppsRowHeight)
             .padding(horizontal = SafeArea.Horizontal),
     ) {
         Text(
@@ -377,11 +355,8 @@ private fun AppRow(
     onFocused: (LaunchableApp) -> Unit,
     firstItemFocus: FocusRequester?,
     upTarget: FocusRequester?,
-    /** Focuses the row, landing on the tile last used in it. */
-    rowFocus: FocusRequester? = null,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
-    trailing: (LazyListScope.() -> Unit)? = null,
 ) {
     val listState = rememberLazyListState()
     val pendingRequester = remember { FocusRequester() }
@@ -391,11 +366,7 @@ private fun AppRow(
         contentPadding = PaddingValues(horizontal = SafeArea.Horizontal, vertical = RowBleed),
         horizontalArrangement = Arrangement.spacedBy(size.gap),
         // Coming back to a row lands on the tile you left.
-        modifier = Modifier
-            .fillMaxWidth()
-            .fadingHorizontalEdges(EdgeFade)
-            .then(if (rowFocus != null) Modifier.focusRequester(rowFocus) else Modifier)
-            .focusRestorer(),
+        modifier = Modifier.fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),
     ) {
         itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
             var tileModifier: Modifier = Modifier
@@ -411,7 +382,6 @@ private fun AppRow(
                 modifier = tileModifier,
             )
         }
-        trailing?.invoke(this)
     }
 
     // Runs again when the list changes, so a target that only appears once prefs land
