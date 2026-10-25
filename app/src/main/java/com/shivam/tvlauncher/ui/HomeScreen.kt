@@ -12,10 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +59,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.BackupState
 import com.shivam.tvlauncher.ColorKey
@@ -102,7 +107,7 @@ interface LauncherActions {
  */
 private val RowBleed = 24.dp
 private val EdgeFade = 40.dp
-private val SectionHeaderHeight = 30.dp
+private val SectionHeaderHeight = 22.dp
 private val HeaderGap = 8.dp
 private val SectionGap = 12.dp
 
@@ -197,14 +202,7 @@ fun HomeScreen(
                     .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 6.dp),
             )
 
-            SectionHeader("My Apps") {
-                AppsButtons(
-                    hiddenCount = ui?.hidden?.size ?: 0,
-                    allAppsButton = allAppsButton,
-                    onAllApps = { if (ui != null) popup = AppsPopup.All },
-                    onHidden = { if (ui != null) popup = AppsPopup.Hidden },
-                )
-            }
+            SectionHeader("My Apps")
             Spacer(Modifier.height(HeaderGap))
             when {
                 ui == null -> Spacer(Modifier.height(RowHeight))
@@ -213,6 +211,7 @@ fun HomeScreen(
                     AppRow(
                         ui.pinned, RowKind.Pinned, TileSize.Standard, actions, openMenu, showInHero,
                         firstItemFocus = initialFocus,
+                        upTarget = openButton,
                         pendingFocus = pendingFocus?.packageName,
                         onPendingFocusDone = focusDone,
                     )
@@ -222,7 +221,13 @@ fun HomeScreen(
             Spacer(Modifier.height(SectionGap))
             SectionHeader("Consoles")
             Spacer(Modifier.height(HeaderGap))
-            ConsolesRow(onOpen = actions::openConsole)
+            BottomRow(
+                onOpen = actions::openConsole,
+                hiddenCount = ui?.hidden?.size ?: 0,
+                allAppsButton = allAppsButton,
+                onAllApps = { if (ui != null) popup = AppsPopup.All },
+                onHidden = { if (ui != null) popup = AppsPopup.Hidden },
+            )
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
@@ -342,38 +347,64 @@ private fun OpenVeil(opens: Int) {
 }
 
 /**
- * A plain Row, not lazy: there are only a few consoles, and a Row doesn't clip their glow, so it
- * needs no bleed.
+ * The consoles from the left, and the All apps / Hidden apps buttons at bottom centre, level with
+ * the console tiles. The consoles are a plain Row, not lazy: there are only a few, and a Row
+ * doesn't clip their glow, so it needs no bleed.
  */
 @Composable
-private fun ConsolesRow(onOpen: (Console) -> Unit) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
-    ) {
-        for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
+private fun BottomRow(
+    onOpen: (Console) -> Unit,
+    hiddenCount: Int,
+    allAppsButton: FocusRequester,
+    onAllApps: () -> Unit,
+    onHidden: () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(TileSize.Standard.gap)) {
+            for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = (TileSize.Standard.height - RoundButtonSize) / 2),
+        ) {
+            RoundIconButton(onAllApps, Modifier.focusRequester(allAppsButton)) { GridIcon(it) }
+            Box {
+                RoundIconButton(onHidden) { HiddenIcon(it) }
+                if (hiddenCount > 0) CountBadge(hiddenCount, Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp))
+            }
+        }
     }
 }
 
-/** "All apps" and "Hidden apps", at the right end of the My Apps header. */
-@Composable
-private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
-        SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
-    }
-}
+private val RoundButtonSize = 48.dp
 
-private val AppsButtonHeight = SectionHeaderHeight
-
+/** A round glass button with just an icon, drawn in [icon]'s given colour. */
 @Composable
-private fun SmallPill(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, icon: @Composable (Color) -> Unit) {
     GlassButton(
         onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        modifier = modifier.height(AppsButtonHeight),
+        shape = CircleShape,
+        contentPadding = PaddingValues(14.dp),
+        modifier = modifier.size(RoundButtonSize),
     ) { focused ->
-        Text(text, style = LauncherText.Label, color = buttonContentColor(focused))
+        icon(buttonContentColor(focused))
+    }
+}
+
+/** How many apps are hidden, on the Hidden apps button. */
+@Composable
+private fun CountBadge(count: Int, modifier: Modifier = Modifier) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(18.dp)
+            .background(LauncherColors.TextPrimary, CircleShape),
+    ) {
+        Text(
+            text = if (count > 99) "99+" else count.toString(),
+            style = LauncherText.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
+            color = LauncherColors.Ink,
+        )
     }
 }
 
@@ -431,16 +462,14 @@ private fun AppMenuFor(
     )
 }
 
-/** A section's title, with optional buttons at the right end of the same line. */
 @Composable
-private fun SectionHeader(text: String, trailing: @Composable () -> Unit = {}) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().height(SectionHeaderHeight).padding(horizontal = SafeArea.Horizontal),
-    ) {
-        Text(text, style = LauncherText.Section, color = LauncherColors.TextSecondary, modifier = Modifier.weight(1f))
-        trailing()
-    }
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = LauncherText.Section,
+        color = LauncherColors.TextSecondary,
+        modifier = Modifier.height(SectionHeaderHeight).padding(horizontal = SafeArea.Horizontal),
+    )
 }
 
 @Composable
@@ -470,6 +499,7 @@ private fun AppRow(
     onMenu: (LaunchableApp, RowKind) -> Unit,
     onFocused: (LaunchableApp) -> Unit,
     firstItemFocus: FocusRequester?,
+    upTarget: FocusRequester?,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
 ) {
@@ -487,6 +517,7 @@ private fun AppRow(
             var tileModifier: Modifier = Modifier
             if (index == 0 && firstItemFocus != null) tileModifier = tileModifier.focusRequester(firstItemFocus)
             if (app.packageName == pendingFocus) tileModifier = tileModifier.focusRequester(pendingRequester)
+            if (upTarget != null) tileModifier = tileModifier.focusProperties { up = upTarget }
             AppTile(
                 app = app,
                 size = size,

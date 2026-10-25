@@ -118,3 +118,39 @@ private val CastPath: Path by lazy {
             "c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
     ).toPath()
 }
+
+/** A 3×3 grid of rounded squares: all apps. */
+@Composable
+fun GridIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val cell = w * 0.26f
+        val gap = (w - cell * 3) / 2f
+        for (row in 0..2) for (col in 0..2) {
+            drawRoundRect(
+                color,
+                topLeft = Offset(col * (cell + gap), row * (cell + gap)),
+                size = Size(cell, cell),
+                cornerRadius = CornerRadius(cell * 0.3f),
+            )
+        }
+    }
+}
+
+/** An eye, struck through: hidden apps. */
+@Composable
+fun HiddenIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val stroke = w * 0.1f
+        val eye = Path().apply {
+            moveTo(w * 0.04f, w * 0.5f)
+            quadraticTo(w * 0.5f, w * 0.02f, w * 0.96f, w * 0.5f)
+            quadraticTo(w * 0.5f, w * 0.98f, w * 0.04f, w * 0.5f)
+            close()
+        }
+        drawPath(eye, color, style = Stroke(width = stroke))
+        drawCircle(color, radius = w * 0.13f, center = Offset(w * 0.5f, w * 0.5f))
+        drawLine(color, Offset(w * 0.14f, w * 0.1f), Offset(w * 0.86f, w * 0.9f), stroke, StrokeCap.Round)
+    }
+}
