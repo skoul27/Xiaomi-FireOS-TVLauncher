@@ -12,6 +12,24 @@ Then press Home on the remote. Amazon's launcher has priority 950 for HOME, so i
 again as soon as it is enabled. The launcher app itself never changes system settings; the one
 setting changed by hand is the remote shortcut below.
 
+## Home button (this Fire OS version)
+
+As of 2026-10-25 Fire OS refuses to disable Amazon's launcher (`pm disable-user` fails with
+"Cannot disable a protected package"), and it sends Home to Amazon's launcher even with this
+one set as the preferred Home app. So the remote shortcut service below also catches Home:
+
+- **Press Home**: opens this launcher (or resets it to the start if it's already open).
+- **Hold Home**: hands the press to Fire OS, which opens Amazon's home. Use this if this
+  launcher ever misbehaves.
+- To stop catching Home altogether, turn the service off with the commands below.
+
+This launcher was also set as the preferred Home app on 2026-10-25. Fire OS ignores that today;
+to undo it anyway:
+
+```sh
+adb shell cmd package set-home-activity --user 0 com.amazon.tv.launcher/.ui.HomeActivity_vNext
+```
+
 ## Remote shortcut (accessibility service)
 
 Fire OS has no on-screen switch for third-party accessibility services, so the color-button

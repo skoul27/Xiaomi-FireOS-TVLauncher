@@ -67,13 +67,13 @@ fun AppTile(
 }
 
 /**
- * A focusable 16:9 glass tile with its label underneath. Draws [art] full-bleed once it is
- * available (fading it in), otherwise [content] on plain glass.
+ * A focusable 16:9 glass tile with its label underneath (none if [label] is null). Draws [art]
+ * full-bleed once it is available (fading it in), otherwise [content] on plain glass.
  */
 @Composable
 fun GlassTile(
     size: TileSize,
-    label: String,
+    label: String?,
     art: ImageBitmap?,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
@@ -115,7 +115,7 @@ fun GlassTile(
         ) {
             if (art == null) content()
         }
-        Text(
+        if (label != null) Text(
             text = label,
             style = LauncherText.Label,
             color = LauncherColors.TextPrimary,

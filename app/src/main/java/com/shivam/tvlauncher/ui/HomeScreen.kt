@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.BackupState
 import com.shivam.tvlauncher.ColorKey
+import com.shivam.tvlauncher.Console
+import com.shivam.tvlauncher.Consoles
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.LauncherUi
 import com.shivam.tvlauncher.RemoteShortcut
@@ -78,6 +80,7 @@ interface LauncherActions {
     fun uninstall(app: LaunchableApp)
     fun openShortcut(shortcut: SystemShortcut)
     fun openWifiSettings()
+    fun openConsole(console: Console)
     fun refreshApps()
     fun setShortcutKey(key: ColorKey?)
     fun setTheme(accent: Accent)
@@ -91,22 +94,25 @@ interface LauncherActions {
     fun dismissBackup()
 }
 
-/** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
+/** Room above My Apps' tiles so a scaled tile and its glow aren't clipped. */
 private val RowBleed = 28.dp
+
+/** Below the tiles the label line already leaves room for the glow; this spaces Consoles off it. */
+private val RowBleedBottom = 14.dp
 private val EdgeFade = 40.dp
 private val SectionTitleHeight = 22.dp
 
 /** Label line under a tile: 12dp gap plus one line of [LauncherText.Label]. */
 private val LabelHeight = 32.dp
-private val MyAppsRowHeight = TileSize.Large.height + RowBleed * 2 + LabelHeight
+private val MyAppsRowHeight = TileSize.Large.height + RowBleed + RowBleedBottom + LabelHeight
 
 private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
 /**
- * One screen, no page scroll: the hero fills whatever the My Apps row and the All apps / Hidden
- * apps buttons below it leave; the top bar floats top-right over the hero's empty corner.
+ * One screen, no page scroll: the hero fills whatever the My Apps and Consoles rows below it
+ * leave; the top bar floats top-right over the hero's empty corner.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -183,7 +189,7 @@ fun HomeScreen(
                 openButtonModifier = Modifier.focusRequester(openButton).focusProperties { up = settingsButton },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 18.dp),
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 12.dp),
             )
 
             SectionTitle("My Apps")
@@ -201,7 +207,10 @@ fun HomeScreen(
                 }
             }
 
-            AppsButtons(
+            SectionTitle("Consoles")
+            Spacer(Modifier.height(ConsolesGap))
+            ConsolesRow(
+                onOpen = actions::openConsole,
                 hiddenCount = ui?.hidden?.size ?: 0,
                 allAppsButton = allAppsButton,
                 onAllApps = { if (ui != null) popup = AppsPopup.All },
@@ -319,16 +328,31 @@ private fun OpenVeil(opens: Int) {
     )
 }
 
-/** "All apps" and "Hidden apps", side by side at bottom centre. Down from My Apps lands here. */
+private val ConsolesGap = 8.dp
+
+/**
+ * The consoles, then "All apps" and "Hidden apps" at the far right of the same line. A plain Row,
+ * not lazy: there are only a few tiles, and it doesn't clip their glow, so it needs no bleed.
+ */
 @Composable
-private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
+private fun ConsolesRow(
+    onOpen: (Console) -> Unit,
+    hiddenCount: Int,
+    allAppsButton: FocusRequester,
+    onAllApps: () -> Unit,
+    onHidden: () -> Unit,
+) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().height(AppsButtonHeight),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
     ) {
-        SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
-        SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
+        Row(horizontalArrangement = Arrangement.spacedBy(TileSize.Small.gap), modifier = Modifier.weight(1f)) {
+            for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            SmallPill("All apps", onAllApps, Modifier.focusRequester(allAppsButton))
+            SmallPill(if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps", onHidden)
+        }
     }
 }
 
@@ -445,7 +469,7 @@ private fun AppRow(
 
     LazyRow(
         state = listState,
-        contentPadding = PaddingValues(horizontal = SafeArea.Horizontal, vertical = RowBleed),
+        contentPadding = PaddingValues(start = SafeArea.Horizontal, end = SafeArea.Horizontal, top = RowBleed, bottom = RowBleedBottom),
         horizontalArrangement = Arrangement.spacedBy(size.gap),
         // Coming back to a row lands on the tile you left.
         modifier = Modifier.fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),

@@ -62,6 +62,13 @@
             </intent-filter>
         </activity>
 
+        <!-- A console's HDMI input, full screen, opened from the Consoles row. -->
+        <activity
+            android:name=".ConsoleActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
         <!-- Optional global shortcut: a color button brings the launcher to the front from any
              app. Key filtering only; the user turns it on under Settings > Accessibility. -->
         <service

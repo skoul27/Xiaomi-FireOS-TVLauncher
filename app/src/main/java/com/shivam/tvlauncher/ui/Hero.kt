@@ -54,9 +54,10 @@ fun Hero(
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 760.dp),
+                    // Narrow enough to clear the top bar, which this line can sit level with.
+                    modifier = Modifier.widthIn(max = 560.dp),
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 // Reserves its line even while loading, so the button below never jumps.
                 Text(
                     text = shown?.let { rememberAppDetails(it) }?.line.orEmpty(),
@@ -68,7 +69,7 @@ fun Hero(
                 )
             }
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(16.dp))
         // Always composed so focus has a stable target; just unreachable until there's an app.
         GlassButton(
             onClick = { app?.let(onOpen) },

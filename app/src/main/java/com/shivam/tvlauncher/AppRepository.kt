@@ -54,8 +54,11 @@ fun loadLaunchableApps(context: Context): List<LaunchableApp> {
  * launcher entry of its own, so it's added by hand when it opens directly on this device.
  */
 private val CastScreenComponents = listOf(
-    ComponentName("com.amazon.cast.sink", "com.amazon.cast.sink.DisplayMirroringSinkActivity"),
+    ComponentName(CAST_SCREEN_PACKAGE, "$CAST_SCREEN_PACKAGE.DisplayMirroringSinkActivity"),
 )
+
+/** It ships only the stock Android icon, so [renderArt] draws a cast glyph for it instead. */
+const val CAST_SCREEN_PACKAGE = "com.amazon.cast.sink"
 
 private fun castScreenApp(context: Context): LaunchableApp? {
     val pm = context.packageManager

@@ -54,6 +54,10 @@ class MainActivity : ComponentActivity() {
             start(Intent(Settings.ACTION_WIFI_SETTINGS), "Wi-Fi settings aren't available")
         }
 
+        override fun openConsole(console: Console) {
+            start(ConsoleActivity.intent(this@MainActivity, console), "Can't open ${console.name}")
+        }
+
         override fun refreshApps() {
             viewModel.refresh()
             Toast.makeText(this@MainActivity, "App list refreshed", Toast.LENGTH_SHORT).show()
