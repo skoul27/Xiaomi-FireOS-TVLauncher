@@ -104,6 +104,9 @@ fun GlassTile(
                     val s = 1f + (FocusedScale - 1f) * motion.focus.value
                     scaleX = s
                     scaleY = s
+                    // Leans the way focus moved, then springs upright; the far camera keeps it subtle.
+                    rotationY = TiltDegrees * motion.tilt.value
+                    cameraDistance = 14f * density
                 }
                 .focusGlow(motion, accent)
                 .tileBorder(motion, accent)

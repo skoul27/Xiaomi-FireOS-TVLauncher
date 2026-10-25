@@ -1,6 +1,5 @@
 package com.shivam.tvlauncher
 
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
@@ -8,7 +7,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
-import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,6 +16,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.shivam.tvlauncher.ui.Accent
 import com.shivam.tvlauncher.ui.HomeScreen
 import com.shivam.tvlauncher.ui.LauncherActions
 import com.shivam.tvlauncher.ui.LauncherTheme
@@ -56,20 +55,23 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun setShortcutKey(key: ColorKey?) = viewModel.setShortcutKey(key)
+        override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
+        override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            LauncherTheme {
+            val settings by viewModel.settings.collectAsStateWithLifecycle()
+            LauncherTheme(accent = Accent.named(settings.theme), animationsEnabled = settings.animations) {
                 val ui by viewModel.ui.collectAsStateWithLifecycle()
                 val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
-                val shortcutKey by viewModel.shortcutKey.collectAsStateWithLifecycle()
                 HomeScreen(
                     ui = ui,
                     shortcuts = shortcuts,
-                    remoteShortcut = RemoteShortcut(shortcutKey, shortcutServiceOn),
+                    remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutServiceOn),
                     homePresses = homePresses,
+                    opens = opens,
                     actions = actions,
                 )
             }
@@ -87,6 +89,14 @@ class MainActivity : ComponentActivity() {
     /** Whether the accessibility shortcut is turned on; re-checked on resume, after a trip to Settings. */
     private var shortcutServiceOn by mutableStateOf(false)
 
+    /** Counts each time the launcher comes to the front; the screen fades in on each. */
+    private var opens by mutableIntStateOf(0)
+
+    override fun onStart() {
+        super.onStart()
+        opens++
+    }
+
     override fun onResume() {
         super.onResume()
         inFront = true
@@ -100,11 +110,15 @@ class MainActivity : ComponentActivity() {
         super.onPause()
     }
 
+    /**
+     * Reads the same setting the system binds accessibility services from. Read-only: the app
+     * never writes it. (AccessibilityManager's enabled list filters by feedback type, and this
+     * service declares none, so it would always look off.)
+     */
     private fun isShortcutServiceOn(): Boolean {
         val ours = ComponentName(this, ShortcutKeyService::class.java)
-        val manager = getSystemService(AccessibilityManager::class.java) ?: return false
-        return manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
-            .any { it.resolveInfo.serviceInfo.let { s -> ComponentName(s.packageName, s.name) } == ours }
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        return enabled.split(':').any { ComponentName.unflattenFromString(it.trim()) == ours }
     }
 
     private fun packageUri(app: LaunchableApp): Uri = Uri.fromParts("package", app.packageName, null)

@@ -25,6 +25,9 @@ data class LauncherPrefs(
     val seeded: Boolean = false,
     /** Color button that brings the launcher to the front from any app; null turns it off. */
     val shortcutKey: ColorKey? = ColorKey.Blue,
+    /** Accent theme name; unknown names fall back to the first theme. */
+    val theme: String = "",
+    val animations: Boolean = true,
 )
 
 private val Context.launcherDataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher")
@@ -44,6 +47,8 @@ class LauncherPrefsStore(context: Context) {
             stored[AllOrder] = next.allOrder.joinToString(Separator)
             stored[Seeded] = next.seeded
             stored[ShortcutKey] = next.shortcutKey?.name ?: ShortcutOff
+            stored[Theme] = next.theme
+            stored[Animations] = next.animations
         }
     }
 
@@ -55,6 +60,8 @@ class LauncherPrefsStore(context: Context) {
         shortcutKey = this[ShortcutKey].let { stored ->
             if (stored == null) ColorKey.Blue else ColorKey.entries.firstOrNull { it.name == stored }
         },
+        theme = this[Theme].orEmpty(),
+        animations = this[Animations] ?: true,
     )
 
     private fun String?.toPackageList(): List<String> =
@@ -69,5 +76,7 @@ class LauncherPrefsStore(context: Context) {
         val Seeded = booleanPreferencesKey("seeded")
         val ShortcutKey = stringPreferencesKey("shortcut_key")
         const val ShortcutOff = "off"
+        val Theme = stringPreferencesKey("theme")
+        val Animations = booleanPreferencesKey("animations")
     }
 }

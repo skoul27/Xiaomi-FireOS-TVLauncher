@@ -1,34 +1,28 @@
 package com.shivam.tvlauncher.ui
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.AppArtCache
 import com.shivam.tvlauncher.LaunchableApp
-import com.shivam.tvlauncher.rememberAppArt
+import com.shivam.tvlauncher.rememberAppDetails
 import kotlinx.coroutines.delay
 
 /** The app the hero shows: whichever tile last had focus. */
@@ -37,9 +31,11 @@ class HeroState {
     var app by mutableStateOf<LaunchableApp?>(null)
 }
 
-private val IconChipShape = RoundedCornerShape(Radii.Chip)
-
-/** Big icon, big name, and an Open button for the focused app. No descriptions, no artwork from the network. */
+/**
+ * The focused app's name, large, over a line of facts the system reports about it (category,
+ * last update, version), and an Open button. No descriptions, nothing from the network: the
+ * tile below already shows the app's art, so the hero doesn't repeat it.
+ */
 @Composable
 fun Hero(
     state: HeroState,
@@ -52,19 +48,27 @@ fun Hero(
     Column(verticalArrangement = Arrangement.Bottom, modifier = modifier) {
         Crossfade(targetState = app, animationSpec = motionTween(animate, 260), label = "hero") { shown ->
             Column {
-                HeroIcon(shown)
-                Spacer(Modifier.height(14.dp))
                 Text(
                     text = shown?.label.orEmpty(),
-                    style = LauncherText.Display,
+                    style = LauncherText.Hero,
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 620.dp),
+                    modifier = Modifier.widthIn(max = 760.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                // Reserves its line even while loading, so the button below never jumps.
+                Text(
+                    text = shown?.let { rememberAppDetails(it) }?.line.orEmpty(),
+                    style = LauncherText.Body,
+                    color = LauncherColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 760.dp),
                 )
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(22.dp))
         // Always composed so focus has a stable target; just unreachable until there's an app.
         GlassButton(
             onClick = { app?.let(onOpen) },
@@ -76,27 +80,6 @@ fun Hero(
             PlayIcon(buttonContentColor(focused))
             Spacer(Modifier.width(10.dp))
             Text("Open", style = LauncherText.Button, color = buttonContentColor(focused))
-        }
-    }
-}
-
-/** The app's real icon on a glass chip; its initial if it ships no icon. */
-@Composable
-private fun HeroIcon(app: LaunchableApp?) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(80.dp).glass(IconChipShape),
-    ) {
-        val art = app?.let { rememberAppArt(it) }
-        val icon = art?.icon
-        when {
-            icon != null -> Image(icon, contentDescription = null, filterQuality = FilterQuality.Medium, modifier = Modifier.size(60.dp))
-            // Only once art has loaded, so an icon on its way never flashes a letter first.
-            art != null && app != null -> Text(
-                app.label.firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "?",
-                style = LauncherText.Display,
-                color = LauncherColors.TextPrimary,
-            )
         }
     }
 }

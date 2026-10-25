@@ -38,6 +38,11 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -73,6 +78,8 @@ interface LauncherActions {
     fun openShortcut(shortcut: SystemShortcut)
     fun refreshApps()
     fun setShortcutKey(key: ColorKey?)
+    fun setTheme(accent: Accent)
+    fun setAnimations(enabled: Boolean)
 }
 
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
@@ -99,6 +106,7 @@ fun HomeScreen(
     shortcuts: List<SystemShortcut>,
     remoteShortcut: RemoteShortcut,
     homePresses: Int,
+    opens: Int,
     actions: LauncherActions,
 ) {
     val scope = rememberCoroutineScope()
@@ -114,6 +122,7 @@ fun HomeScreen(
     var menu by remember { mutableStateOf<MenuTarget?>(null) }
     var popup by remember { mutableStateOf<AppsPopup?>(null) }
     var showSystem by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
     var pendingFocus by remember { mutableStateOf<MenuTarget?>(null) }
     val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
@@ -128,7 +137,20 @@ fun HomeScreen(
     // Color buttons, from wherever focus is. Acts on the press; the release is just swallowed.
     // While a pop-up is open its own window gets the keys; each closes on the button that opened it.
     Box(
-        Modifier.fillMaxSize().onKeyEvent { event ->
+        Modifier
+            .fillMaxSize()
+            // Remember which way the D-pad moved, so the tile focus lands on can lean that way.
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    FocusDirection.horizontal = when (event.nativeKeyEvent.keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> -1
+                        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> 1
+                        else -> 0
+                    }
+                }
+                false
+            }
+            .onKeyEvent { event ->
             val color = ColorKey.fromKeyCode(event.nativeKeyEvent.keyCode) ?: return@onKeyEvent false
             if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
                 when (color) {
@@ -202,12 +224,22 @@ fun HomeScreen(
         if (showSystem) {
             SystemMenu(
                 shortcuts,
-                remoteShortcut,
                 onOpen = { showSystem = false; actions.openShortcut(it) },
-                onShortcutKeyChange = actions::setShortcutKey,
+                onLauncherSettings = { showSystem = false; showSettings = true },
                 onDismiss = { showSystem = false },
             )
         }
+        if (showSettings) {
+            LauncherSettingsMenu(
+                accent = LocalAccentTheme.current,
+                animations = animate,
+                remoteShortcut = remoteShortcut,
+                actions = actions,
+                onDismiss = { showSettings = false },
+            )
+        }
+
+        OpenVeil(opens)
     }
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
@@ -220,6 +252,7 @@ fun HomeScreen(
         menu = null
         popup = null
         showSystem = false
+        showSettings = false
         // A closing dialog hands focus back to our window; wait for that, or it overrides us.
         snapshotFlow { windowInfo.isWindowFocused }.first { it }
         focusStart()
@@ -235,6 +268,27 @@ fun HomeScreen(
             focusStart()
         }
     }
+}
+
+/**
+ * Fades the screen in from black each time the launcher comes to the front. One full-screen
+ * rect over everything, drawn only during the fade: cheaper than an alpha layer on the whole UI.
+ */
+@Composable
+private fun OpenVeil(opens: Int) {
+    val animate = LocalAnimationsEnabled.current
+    val veil = remember { Animatable(0f) }
+    LaunchedEffect(opens) {
+        if (!animate || opens == 0) return@LaunchedEffect
+        veil.snapTo(1f)
+        veil.animateTo(0f, tween(320, easing = LinearOutSlowInEasing))
+    }
+    Box(
+        Modifier.fillMaxSize().drawBehind {
+            val v = veil.value
+            if (v > 0f) drawRect(LauncherColors.Ink, alpha = v)
+        },
+    )
 }
 
 /** "All apps" and "Hidden apps", side by side at bottom centre. Down from My Apps lands here. */

@@ -48,16 +48,25 @@ object Glass {
     val TileBase = Color(0xFF1A1C22)
 }
 
-/** Accent used for focus glow and small highlights; the user can pick one in Settings. */
+/**
+ * Accent themes, all on the same dark glass: the colour of the focus glow and rim, list
+ * highlights and the search cursor. Picked under Launcher settings.
+ */
 enum class Accent(val label: String, val color: Color) {
     Glacier("Glacier", Color(0xFFA9C9FF)),
     Aurora("Aurora", Color(0xFF8CE6C9)),
     Ember("Ember", Color(0xFFFFB98F)),
-    Orchid("Orchid", Color(0xFFD4B0FF)),
-    Mono("Mono", Color(0xFFFFFFFF)),
+    Orchid("Orchid", Color(0xFFD4B0FF));
+
+    companion object {
+        fun named(name: String): Accent = entries.firstOrNull { it.name == name } ?: Glacier
+    }
 }
 
 val LocalAccent = staticCompositionLocalOf { Accent.Glacier.color }
+
+/** The theme itself, for the settings panel to show which one is picked. */
+val LocalAccentTheme = staticCompositionLocalOf { Accent.Glacier }
 
 /** When false every transition snaps; focus is still shown by border, glow and scale. */
 val LocalAnimationsEnabled = staticCompositionLocalOf { true }
@@ -82,6 +91,7 @@ val PillShape = RoundedCornerShape(percent = 50)
 
 /** Sizes are for a 540dp-tall screen viewed from a sofa: nothing below 14sp. */
 object LauncherText {
+    val Hero = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 54.sp, lineHeight = 62.sp, letterSpacing = (-0.9).sp)
     val Display = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.6).sp)
     val Time = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 24.sp, lineHeight = 28.sp, letterSpacing = 0.sp)
     val Date = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.2.sp)
@@ -130,6 +140,7 @@ fun LauncherTheme(
     ) {
         CompositionLocalProvider(
             LocalAccent provides accent.color,
+            LocalAccentTheme provides accent,
             LocalAnimationsEnabled provides animationsEnabled,
             content = content,
         )

@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,9 +38,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    /** The color button the accessibility shortcut listens for; null when it's off. */
-    val shortcutKey: StateFlow<ColorKey?> = prefsStore.prefs.map { it.shortcutKey }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, LauncherPrefs().shortcutKey)
+    /** Settings the whole screen depends on: theme, animations, the remote shortcut. */
+    val settings: StateFlow<LauncherPrefs> = prefsStore.prefs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, LauncherPrefs())
 
     private val _shortcuts = MutableStateFlow<List<SystemShortcut>>(emptyList())
 
@@ -78,6 +77,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun unhide(app: LaunchableApp) = edit { it.copy(hidden = it.hidden - app.packageName) }
 
     fun setShortcutKey(key: ColorKey?) = edit { it.copy(shortcutKey = key) }
+
+    fun setTheme(name: String) = edit { it.copy(theme = name) }
+
+    fun setAnimations(enabled: Boolean) = edit { it.copy(animations = enabled) }
 
     /** Swaps [app] with its neighbour in [row]; the row's visible order becomes the saved order. */
     fun move(app: LaunchableApp, row: RowKind, delta: Int) {

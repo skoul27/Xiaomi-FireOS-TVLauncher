@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -83,39 +84,51 @@ fun AppMenu(
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
-/**
- * The gear button's panel: Fire OS settings screens that actually open on this device, then the
- * remote shortcut, which cycles Off → Red → Green → Yellow → Blue on OK.
- */
+/** The gear button's panel: Launcher settings, then Fire OS settings screens that open on this device. */
 @Composable
 fun SystemMenu(
     shortcuts: List<SystemShortcut>,
-    remoteShortcut: RemoteShortcut,
     onOpen: (SystemShortcut) -> Unit,
-    onShortcutKeyChange: (ColorKey?) -> Unit,
+    onLauncherSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss) {
         PanelTitle("System")
+        MenuItem("Launcher settings", Modifier.focusRequester(first), onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
-                "No settings screens are available right now.",
+                "No Fire OS settings screens are available right now.",
                 style = LauncherText.Body,
                 color = LauncherColors.TextSecondary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
-        shortcuts.forEachIndexed { index, shortcut ->
-            MenuItem(shortcut.label, if (index == 0) Modifier.focusRequester(first) else Modifier) { onOpen(shortcut) }
+        for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
+    }
+    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/** This launcher's own settings. Each row cycles its value on OK and saves at once. */
+@Composable
+fun LauncherSettingsMenu(
+    accent: Accent,
+    animations: Boolean,
+    remoteShortcut: RemoteShortcut,
+    actions: LauncherActions,
+    onDismiss: () -> Unit,
+) {
+    val first = remember { FocusRequester() }
+    MenuDialog(onDismiss, width = 420) {
+        PanelTitle("Launcher settings")
+        SettingItem("Theme", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first)) {
+            actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
         }
+        SettingItem("Animations", if (animations) "On" else "Off") { actions.setAnimations(!animations) }
         val key = remoteShortcut.key
-        MenuItem(
-            "Remote shortcut: ${key?.label ?: "Off"}",
-            if (shortcuts.isEmpty()) Modifier.focusRequester(first) else Modifier,
-        ) {
+        SettingItem("Remote shortcut", key?.label ?: "Off") {
             val order = listOf(null) + ColorKey.entries
-            onShortcutKeyChange(order[(order.indexOf(key) + 1) % order.size])
+            actions.setShortcutKey(order[(order.indexOf(key) + 1) % order.size])
         }
         Text(
             when {
@@ -129,8 +142,21 @@ fun SystemMenu(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     }
-    // Keyed on emptiness so focus moves to the first screen once the list arrives.
-    LaunchedEffect(shortcuts.isEmpty()) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/** "Label        Value" on one row, with an optional colour swatch before the value. */
+@Composable
+private fun SettingItem(label: String, value: String, swatch: Color? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    FocusRow(modifier = modifier.height(48.dp), onClick = onClick) { focused ->
+        val color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary
+        Text(label, style = LauncherText.Body, color = color, modifier = Modifier.weight(1f))
+        if (swatch != null) {
+            Box(Modifier.size(12.dp).clip(PillShape).background(swatch))
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(value, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary)
+    }
 }
 
 @Composable
@@ -199,7 +225,7 @@ private fun HiddenAppRow(app: LaunchableApp, modifier: Modifier, onClick: () -> 
 
 /** A menu row that turns white when focused. Dialogs are small, so plain state is fine here. */
 @Composable
-private fun FocusRow(modifier: Modifier, onClick: () -> Unit, content: @Composable (focused: Boolean) -> Unit) {
+private fun FocusRow(modifier: Modifier, onClick: () -> Unit, content: @Composable RowScope.(focused: Boolean) -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,

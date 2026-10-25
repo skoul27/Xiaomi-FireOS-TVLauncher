@@ -306,6 +306,7 @@ private fun AppList(
     val margin = with(LocalDensity.current) { RowHeight.toPx() }
     val animate = LocalAnimationsEnabled.current
     val scrollSpec = remember(margin, animate) { ComfortableScrollSpec(margin, animate) }
+    val accent = LocalAccent.current
 
     // Lazy lists keep their place by key; a new search should start from the top instead.
     LaunchedEffect(resetKey) { listState.scrollToItem(0) }
@@ -352,7 +353,7 @@ private fun AppList(
                             .remoteClickable(onClick = { onClick(app) }, onLongClick = onLongClick?.let { { it(app) } })
                             .clip(ItemShape)
                             .background(if (focused) Glass.FillFocused else Color.Transparent)
-                            .border(1.dp, if (focused) Glass.BorderFocused else Color.Transparent, ItemShape)
+                            .border(1.5.dp, if (focused) accent else Color.Transparent, ItemShape)
                             .padding(horizontal = 12.dp),
                     ) {
                         rowContent(app, focused)
