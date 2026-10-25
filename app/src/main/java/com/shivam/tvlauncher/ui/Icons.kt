@@ -122,21 +122,3 @@ fun GridIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
         }
     }
 }
-
-/** An eye, struck through: hidden apps. */
-@Composable
-fun HiddenIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(size)) {
-        val w = this.size.width
-        val stroke = w * 0.1f
-        val eye = Path().apply {
-            moveTo(w * 0.04f, w * 0.5f)
-            quadraticTo(w * 0.5f, w * 0.02f, w * 0.96f, w * 0.5f)
-            quadraticTo(w * 0.5f, w * 0.98f, w * 0.04f, w * 0.5f)
-            close()
-        }
-        drawPath(eye, color, style = Stroke(width = stroke))
-        drawCircle(color, radius = w * 0.13f, center = Offset(w * 0.5f, w * 0.5f))
-        drawLine(color, Offset(w * 0.14f, w * 0.1f), Offset(w * 0.86f, w * 0.9f), stroke, StrokeCap.Round)
-    }
-}

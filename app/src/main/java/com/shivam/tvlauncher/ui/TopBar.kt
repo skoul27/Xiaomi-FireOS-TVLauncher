@@ -2,10 +2,12 @@ package com.shivam.tvlauncher.ui
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,85 +35,52 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Cast, network status (opens Wi-Fi settings), time and date, and the settings button, top-right. */
+/** Time and date, then the round buttons ([buttons]), top-right. */
 @Composable
-fun TopBar(
-    castButton: @Composable () -> Unit,
-    networkButton: @Composable () -> Unit,
-    settingsButton: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun TopBar(buttons: @Composable () -> Unit, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.End,
         modifier = modifier.fillMaxWidth().height(TopBarHeight),
     ) {
-        castButton()
-        Spacer(Modifier.width(12.dp))
-        networkButton()
-        Spacer(Modifier.width(22.dp))
         Clock()
-        Spacer(Modifier.width(22.dp))
-        settingsButton()
+        Spacer(Modifier.width(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) { buttons() }
     }
 }
 
 val TopBarHeight = 52.dp
 
+/** A round glass button holding one centred icon, drawn in the colour it's given. */
 @Composable
-fun SettingsButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, icon: @Composable (Color) -> Unit) {
     GlassButton(
         onClick = onClick,
         shape = CircleShape,
-        contentPadding = PaddingValues(13.dp),
-        modifier = modifier.size(48.dp),
+        contentPadding = PaddingValues(0.dp),
+        modifier = modifier.size(RoundButtonSize),
     ) { focused ->
-        GearIcon(buttonContentColor(focused))
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            icon(buttonContentColor(focused))
+        }
     }
 }
 
-/** Opens screen mirroring, so a phone can cast to the TV. */
-@Composable
-fun CastButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    GlassButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        modifier = modifier.height(36.dp),
-    ) { focused ->
-        CastIcon(buttonContentColor(focused), size = 17.dp)
-        Spacer(Modifier.width(9.dp))
-        Text("Cast", style = LauncherText.Caption, color = buttonContentColor(focused))
-    }
-}
+val RoundButtonSize = 48.dp
 
+/** Wi-Fi bars or Ethernet as the network reports it; faint with no internet, crossed out offline. */
 @Composable
 fun NetworkButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
     val flow = remember(context) { networkStatusFlow(context) }
     val status by flow.collectAsStateWithLifecycle(NetworkStatus(NetworkKind.None))
-    GlassButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 14.dp),
-        modifier = modifier.height(36.dp),
-    ) { focused ->
-        val color = buttonContentColor(focused)
+    RoundIconButton(onClick, modifier) { color ->
+        val shown = if (status.kind != NetworkKind.None && !status.online) color.copy(alpha = 0.5f) else color
         when (status.kind) {
-            NetworkKind.Ethernet -> EthernetIcon(color)
-            NetworkKind.None -> WifiIcon(color, level = -1)
-            else -> WifiIcon(color, level = status.level)
+            NetworkKind.Ethernet -> EthernetIcon(shown, size = 22.dp)
+            NetworkKind.None -> WifiIcon(shown, level = -1, size = 22.dp)
+            else -> WifiIcon(shown, level = status.level, size = 22.dp)
         }
-        Spacer(Modifier.width(9.dp))
-        Text(
-            text = when {
-                status.kind == NetworkKind.None -> "Offline"
-                !status.online -> "No internet"
-                status.kind == NetworkKind.Ethernet -> "Ethernet"
-                status.kind == NetworkKind.Wifi -> "Wi-Fi"
-                else -> "Connected"
-            },
-            style = LauncherText.Caption,
-            color = if (!focused && (status.kind == NetworkKind.None || !status.online)) LauncherColors.TextSecondary else color,
-        )
     }
 }
 

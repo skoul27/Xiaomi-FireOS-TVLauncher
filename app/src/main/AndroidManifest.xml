@@ -22,9 +22,7 @@
         </intent>
         <!-- The settings screens the gear menu checks for before offering them. -->
         <intent><action android:name="android.settings.SETTINGS" /></intent>
-        <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
         <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
-        <intent><action android:name="android.settings.APPLICATION_SETTINGS" /></intent>
         <intent><action android:name="android.settings.DEVICE_INFO_SETTINGS" /></intent>
         <package android:name="com.amazon.tv.settings.v2" />
     </queries>

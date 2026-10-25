@@ -14,20 +14,19 @@ class SystemShortcut(val label: String, val intent: Intent)
 private const val FireSettings = "com.amazon.tv.settings.v2"
 
 /**
- * Candidate intents per entry, best first. Fire OS keeps its main Settings grid inside the stock
+ * The few Fire OS screens worth a shortcut (network has the top bar's Wi-Fi button), with
+ * candidate intents per entry, best first. Fire OS keeps its main Settings grid inside the stock
  * launcher, so "Fire OS Settings" disappears if that launcher is ever disabled; the screens below
  * it live in the separate settings app and keep working, including Developer Options (ADB) and
  * Restart under Device & Software.
  */
 private val Candidates: List<Pair<String, List<Intent>>> = listOf(
     "Fire OS Settings" to listOf(Intent(Settings.ACTION_SETTINGS)),
-    "Network" to listOf(Intent(Settings.ACTION_WIFI_SETTINGS)),
     // Explicit, because the generic action matches two apps here and would show a chooser.
     "Display & Sound" to listOf(
         Intent().setComponent(ComponentName(FireSettings, "$FireSettings.tv.display_sounds.DisplayAndSoundsActivity")),
         Intent(Settings.ACTION_DISPLAY_SETTINGS),
     ),
-    "Applications" to listOf(Intent(Settings.ACTION_APPLICATION_SETTINGS)),
     "Device & Software" to listOf(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS)),
 )
 

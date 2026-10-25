@@ -67,7 +67,7 @@ adb shell settings put secure accessibility_enabled 1
 ```
 
 The launcher checks this for you: when the chosen color button's service isn't enabled, the
-System panel (gear) shows a notice with these two commands already filled in from the current
+Settings panel (gear) shows a notice with these two commands already filled in from the current
 list. The launcher only reads the setting; it never changes it.
 
 ## Backing up and restoring your setup
@@ -97,10 +97,10 @@ the one on your computer.
 ## What this depends on
 
 - **ADB debugging must stay on.** It is under Device & Software → Developer Options, which this
-  launcher's gear menu (System → Device & Software) opens directly. Don't turn it off while the
+  launcher's gear menu (Settings → Device & Software) opens directly. Don't turn it off while the
   stock launcher is disabled, or these commands can't reach the TV.
 - The TV's IP is `<TV-IP>` today. If your router hands it a new one, look it up under
-  System → Network in this launcher, or in the router's client list.
+  the Wi-Fi button in this launcher's top bar, or in the router's client list.
 - If `adb connect` asks for authorisation, accept the prompt on the TV screen.
 
 ## Checking the current state

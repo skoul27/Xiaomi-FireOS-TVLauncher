@@ -12,14 +12,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +55,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.BackupState
 import com.shivam.tvlauncher.ColorKey
@@ -108,8 +103,8 @@ interface LauncherActions {
 private val RowBleed = 24.dp
 private val EdgeFade = 40.dp
 private val SectionHeaderHeight = 22.dp
-private val HeaderGap = 8.dp
-private val SectionGap = 12.dp
+private val HeaderGap = 12.dp
+private val SectionGap = 28.dp
 
 /** Label line under a tile: 10dp gap plus one line of [LauncherText.Label]. */
 private val LabelHeight = 30.dp
@@ -195,7 +190,7 @@ fun HomeScreen(
                 state = hero,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 26.dp),
+                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 32.dp),
             )
 
             SectionHeader("My Apps")
@@ -217,25 +212,17 @@ fun HomeScreen(
             SectionHeader("Consoles")
             Spacer(Modifier.height(HeaderGap))
             ConsolesRow(onOpen = actions::openConsole)
-            Spacer(Modifier.height(BottomButtonsGap))
-            AppsButtons(
-                hiddenCount = ui?.hidden?.size ?: 0,
-                allAppsButton = allAppsButton,
-                onAllApps = { if (ui != null) popup = AppsPopup.All },
-                onHidden = { if (ui != null) popup = AppsPopup.Hidden },
-            )
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
         TopBar(
-            castButton = {
-                CastButton(onClick = actions::openCast)
-            },
-            networkButton = {
-                NetworkButton(onClick = actions::openWifiSettings)
-            },
-            settingsButton = {
-                SettingsButton(onClick = { showSystem = true })
+            buttons = {
+                RoundIconButton({ if (ui != null) popup = AppsPopup.All }, Modifier.focusRequester(allAppsButton)) {
+                    GridIcon(it, size = 18.dp)
+                }
+                RoundIconButton(actions::openCast) { CastIcon(it, size = 21.dp) }
+                NetworkButton(actions::openWifiSettings)
+                RoundIconButton({ showSystem = true }) { GearIcon(it) }
             },
             modifier = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal),
         )
@@ -255,6 +242,8 @@ fun HomeScreen(
             SystemMenu(
                 shortcuts,
                 remoteShortcut,
+                hiddenCount = ui?.hidden?.size ?: 0,
+                onHiddenApps = { showSystem = false; if (ui != null) popup = AppsPopup.Hidden },
                 onOpen = { showSystem = false; actions.openShortcut(it) },
                 onLauncherSettings = { showSystem = false; showSettings = true },
                 onDismiss = { showSystem = false },
@@ -347,54 +336,7 @@ private fun ConsolesRow(onOpen: (Console) -> Unit) {
     }
 }
 
-private val BottomButtonsGap = 12.dp
 
-/** All apps and Hidden apps: round icon buttons side by side at the bottom centre of the screen. */
-@Composable
-private fun AppsButtons(hiddenCount: Int, allAppsButton: FocusRequester, onAllApps: () -> Unit, onHidden: () -> Unit) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        RoundIconButton(onAllApps, Modifier.focusRequester(allAppsButton)) { GridIcon(it) }
-        Box {
-            RoundIconButton(onHidden) { HiddenIcon(it) }
-            if (hiddenCount > 0) CountBadge(hiddenCount, Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp))
-        }
-    }
-}
-
-private val RoundButtonSize = 48.dp
-
-/** A round glass button with just an icon, drawn in [icon]'s given colour. */
-@Composable
-private fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, icon: @Composable (Color) -> Unit) {
-    GlassButton(
-        onClick = onClick,
-        shape = CircleShape,
-        contentPadding = PaddingValues(14.dp),
-        modifier = modifier.size(RoundButtonSize),
-    ) { focused ->
-        icon(buttonContentColor(focused))
-    }
-}
-
-/** How many apps are hidden, on the Hidden apps button. */
-@Composable
-private fun CountBadge(count: Int, modifier: Modifier = Modifier) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(18.dp)
-            .background(LauncherColors.TextPrimary, CircleShape),
-    ) {
-        Text(
-            text = if (count > 99) "99+" else count.toString(),
-            style = LauncherText.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp),
-            color = LauncherColors.Ink,
-        )
-    }
-}
 
 /** Resolves the target against the live UI so the menu reflects moves as they happen. */
 @Composable

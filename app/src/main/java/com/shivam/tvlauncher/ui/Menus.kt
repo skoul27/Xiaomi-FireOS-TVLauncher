@@ -84,11 +84,16 @@ fun AppMenu(
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
-/** The gear button's panel: Launcher settings, then Fire OS settings screens that open on this device. */
+/**
+ * The gear button's panel: Hidden apps and Launcher settings, then the Fire OS settings screens
+ * that open on this device.
+ */
 @Composable
 fun SystemMenu(
     shortcuts: List<SystemShortcut>,
     remoteShortcut: RemoteShortcut,
+    hiddenCount: Int,
+    onHiddenApps: () -> Unit,
     onOpen: (SystemShortcut) -> Unit,
     onLauncherSettings: () -> Unit,
     onDismiss: () -> Unit,
@@ -98,9 +103,14 @@ fun SystemMenu(
     val shortcutOff = key != null && !remoteShortcut.serviceOn
     // Wider while the notice shows, so its commands wrap onto fewer lines.
     MenuDialog(onDismiss, width = if (shortcutOff) 480 else 360) {
-        PanelTitle("System")
+        PanelTitle("Settings")
         if (key != null && shortcutOff) ShortcutOffNotice(key, remoteShortcut.enableCommands)
-        MenuItem("Launcher settings", Modifier.focusRequester(first), onClick = onLauncherSettings)
+        MenuItem(
+            if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps",
+            Modifier.focusRequester(first),
+            onClick = onHiddenApps,
+        )
+        MenuItem("Launcher settings", onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -164,25 +174,25 @@ fun LauncherSettingsMenu(
             val order = listOf(null) + ColorKey.entries
             actions.setShortcutKey(order[(order.indexOf(key) + 1) % order.size])
         }
-        Text(
-            when {
-                key == null -> "Color buttons still work inside the launcher."
-                remoteShortcut.serviceOn -> "${key.label} opens the launcher from any app."
-                else -> "Works inside the launcher. \"${stringResource(R.string.shortcut_service_label)}\" " +
-                    "isn't turned on, so other apps don't see it."
-            },
-            style = LauncherText.Caption,
-            color = LauncherColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
+        // Only worth a line when the shortcut is chosen but can't work outside the launcher.
+        if (key != null && !remoteShortcut.serviceOn) {
+            Text(
+                "Works inside the launcher only: \"${stringResource(R.string.shortcut_service_label)}\" isn't turned on.",
+                style = LauncherText.Caption,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
         MenuItem("Export backup", onClick = actions::exportBackup)
         MenuItem("Import backup", onClick = actions::importBackup)
-        Text(
-            backupMessage ?: "Export saves a file you can copy to a computer with adb; see RECOVERY.md.",
-            style = LauncherText.Caption,
-            color = if (backupMessage != null) LauncherColors.TextPrimary else LauncherColors.TextSecondary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
+        if (backupMessage != null) {
+            Text(
+                backupMessage,
+                style = LauncherText.Caption,
+                color = LauncherColors.TextPrimary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
