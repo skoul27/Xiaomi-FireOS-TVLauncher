@@ -3,9 +3,6 @@ package com.shivam.tvlauncher.ui
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -45,8 +42,6 @@ fun Hero(
     onOpen: (LaunchableApp) -> Unit,
     openButtonModifier: Modifier,
     modifier: Modifier = Modifier,
-    /** Shown to the right of Open, on the same line (the Recent strip). */
-    trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val app = state.app
     val animate = LocalAnimationsEnabled.current
@@ -74,20 +69,17 @@ fun Hero(
             }
         }
         Spacer(Modifier.height(22.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Always composed so focus has a stable target; just unreachable until there's an app.
-            GlassButton(
-                onClick = { app?.let(onOpen) },
-                modifier = openButtonModifier
-                    .height(46.dp)
-                    .focusProperties { canFocus = app != null }
-                    .alpha(if (app == null) 0f else 1f),
-            ) { focused ->
-                PlayIcon(buttonContentColor(focused))
-                Spacer(Modifier.width(10.dp))
-                Text("Open", style = LauncherText.Button, color = buttonContentColor(focused))
-            }
-            trailing()
+        // Always composed so focus has a stable target; just unreachable until there's an app.
+        GlassButton(
+            onClick = { app?.let(onOpen) },
+            modifier = openButtonModifier
+                .height(46.dp)
+                .focusProperties { canFocus = app != null }
+                .alpha(if (app == null) 0f else 1f),
+        ) { focused ->
+            PlayIcon(buttonContentColor(focused))
+            Spacer(Modifier.width(10.dp))
+            Text("Open", style = LauncherText.Button, color = buttonContentColor(focused))
         }
     }
 }

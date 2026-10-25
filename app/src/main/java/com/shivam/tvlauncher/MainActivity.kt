@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
 
     private val actions = object : LauncherActions {
         override fun launch(app: LaunchableApp) {
-            if (start(app.launchIntent(), "Can't open ${app.label}")) viewModel.recordLaunch(app)
+            start(app.launchIntent(), "Can't open ${app.label}")
         }
         override fun pin(app: LaunchableApp) = viewModel.pin(app)
         override fun unpin(app: LaunchableApp) = viewModel.unpin(app)
@@ -58,7 +58,6 @@ class MainActivity : ComponentActivity() {
         override fun setShortcutKey(key: ColorKey?) = viewModel.setShortcutKey(key)
         override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
         override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
-        override fun clearRecent() = viewModel.clearRecent()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -144,20 +143,16 @@ class MainActivity : ComponentActivity() {
 
     private fun packageUri(app: LaunchableApp): Uri = Uri.fromParts("package", app.packageName, null)
 
-    /** True if the activity was started. */
-    private fun start(intent: Intent, failureMessage: String): Boolean {
+    private fun start(intent: Intent, failureMessage: String) {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastStartAt < 1_000) return false
+        if (now - lastStartAt < 1_000) return
         lastStartAt = now
-        return try {
+        try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            true
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(this, failureMessage, Toast.LENGTH_SHORT).show()
-            false
         } catch (e: SecurityException) {
             Toast.makeText(this, failureMessage, Toast.LENGTH_SHORT).show()
-            false
         }
     }
 

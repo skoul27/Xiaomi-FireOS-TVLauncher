@@ -158,7 +158,6 @@ fun LauncherSettingsMenu(
             actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
         }
         SettingItem("Animations", if (animations) "On" else "Off") { actions.setAnimations(!animations) }
-        MenuItem("Clear recent", onClick = actions::clearRecent)
         val key = remoteShortcut.key
         SettingItem("Remote shortcut", key?.label ?: "Off") {
             val order = listOf(null) + ColorKey.entries

@@ -23,8 +23,6 @@ data class LauncherUi(
     val pinned: List<LaunchableApp>,
     val all: List<LaunchableApp>,
     val hidden: List<LaunchableApp>,
-    /** Opened from here, newest first; hidden and uninstalled apps left out. */
-    val recent: List<LaunchableApp> = emptyList(),
 ) {
     fun row(kind: RowKind): List<LaunchableApp> = if (kind == RowKind.Pinned) pinned else all
 }
@@ -80,13 +78,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setShortcutKey(key: ColorKey?) = edit { it.copy(shortcutKey = key) }
 
-    /** Called after a launch from this screen succeeds. */
-    fun recordLaunch(app: LaunchableApp) = edit {
-        it.copy(recent = (listOf(app.packageName) + (it.recent - app.packageName)).take(RecentLimit))
-    }
-
-    fun clearRecent() = edit { it.copy(recent = emptyList()) }
-
     fun setTheme(name: String) = edit { it.copy(theme = name) }
 
     fun setAnimations(enabled: Boolean) = edit { it.copy(animations = enabled) }
@@ -116,6 +107,5 @@ private fun arrange(apps: List<LaunchableApp>, prefs: LauncherPrefs): LauncherUi
         // Stable sort: unranked apps (e.g. new installs) keep alphabetical order at the end.
         all = visible.sortedBy { rank[it.packageName] ?: Int.MAX_VALUE },
         hidden = hidden,
-        recent = prefs.recent.mapNotNull { byPackage[it] }.filter { it.packageName !in prefs.hidden },
     )
 }

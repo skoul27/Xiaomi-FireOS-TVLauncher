@@ -7,13 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.FilterQuality
-import com.shivam.tvlauncher.rememberAppArt
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -87,7 +80,6 @@ interface LauncherActions {
     fun setShortcutKey(key: ColorKey?)
     fun setTheme(accent: Accent)
     fun setAnimations(enabled: Boolean)
-    fun clearRecent()
 }
 
 /** Vertical room inside each row so a scaled tile and its glow aren't clipped. */
@@ -182,11 +174,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 18.dp),
-            ) {
-                if (ui != null && ui.recent.isNotEmpty()) {
-                    RecentStrip(ui.recent, onOpen = actions::launch, onFocused = showInHero, upTarget = settingsButton)
-                }
-            }
+            )
 
             SectionTitle("My Apps")
             when {
@@ -303,42 +291,6 @@ private fun OpenVeil(opens: Int) {
         },
     )
 }
-
-/**
- * Apps recently opened from here, as icon chips on the Open button's line: the hero above
- * shows whichever chip has focus, so the chips don't need labels of their own.
- */
-@OptIn(ExperimentalComposeUiApi::class)
-@Composable
-private fun RowScope.RecentStrip(
-    apps: List<LaunchableApp>,
-    onOpen: (LaunchableApp) -> Unit,
-    onFocused: (LaunchableApp) -> Unit,
-    upTarget: FocusRequester,
-) {
-    Spacer(Modifier.width(32.dp))
-    Text("Recent", style = LauncherText.Label, color = LauncherColors.TextSecondary)
-    Spacer(Modifier.width(14.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.focusRestorer()) {
-        for (app in apps) {
-            GlassButton(
-                onClick = { onOpen(app) },
-                shape = RecentChipShape,
-                contentPadding = PaddingValues(7.dp),
-                modifier = Modifier
-                    .size(46.dp)
-                    .focusProperties { up = upTarget }
-                    .onFocusChanged { if (it.isFocused) onFocused(app) },
-            ) {
-                rememberAppArt(app)?.icon?.let {
-                    Image(it, contentDescription = app.label, filterQuality = FilterQuality.Low, modifier = Modifier.fillMaxSize())
-                }
-            }
-        }
-    }
-}
-
-private val RecentChipShape = RoundedCornerShape(12.dp)
 
 /** "All apps" and "Hidden apps", side by side at bottom centre. Down from My Apps lands here. */
 @Composable

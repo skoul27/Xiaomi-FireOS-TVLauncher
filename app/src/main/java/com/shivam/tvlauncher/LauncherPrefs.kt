@@ -28,11 +28,7 @@ data class LauncherPrefs(
     /** Accent theme name; unknown names fall back to the first theme. */
     val theme: String = "",
     val animations: Boolean = true,
-    /** Packages opened from this launcher, newest first, at most [RecentLimit]. */
-    val recent: List<String> = emptyList(),
 )
-
-const val RecentLimit = 8
 
 private val Context.launcherDataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher")
 
@@ -53,7 +49,8 @@ class LauncherPrefsStore(context: Context) {
             stored[ShortcutKey] = next.shortcutKey?.name ?: ShortcutOff
             stored[Theme] = next.theme
             stored[Animations] = next.animations
-            stored[Recent] = next.recent.joinToString(Separator)
+            // Left by a removed "Recent" feature; drop it so no launch history stays on disk.
+            stored.remove(RemovedRecent)
         }
     }
 
@@ -67,7 +64,6 @@ class LauncherPrefsStore(context: Context) {
         },
         theme = this[Theme].orEmpty(),
         animations = this[Animations] ?: true,
-        recent = this[Recent].toPackageList(),
     )
 
     private fun String?.toPackageList(): List<String> =
@@ -84,6 +80,6 @@ class LauncherPrefsStore(context: Context) {
         const val ShortcutOff = "off"
         val Theme = stringPreferencesKey("theme")
         val Animations = booleanPreferencesKey("animations")
-        val Recent = stringPreferencesKey("recent")
+        val RemovedRecent = stringPreferencesKey("recent")
     }
 }

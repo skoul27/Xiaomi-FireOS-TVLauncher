@@ -37,6 +37,8 @@ private val detailsCache = ConcurrentHashMap<String, AppDetails>()
 fun rememberAppDetails(app: LaunchableApp): AppDetails? {
     val context = LocalContext.current.applicationContext
     return produceState(detailsCache[app.artKey], app.artKey) {
+        // Reset for the new key first: produceState keeps the previous app's value otherwise.
+        value = detailsCache[app.artKey]
         if (value == null) {
             value = withContext(Dispatchers.IO) { readDetails(context, app) }.also { detailsCache[app.artKey] = it }
         }

@@ -88,6 +88,8 @@ object AppArtCache {
 fun rememberAppArt(app: LaunchableApp): AppArt? {
     val context = LocalContext.current.applicationContext
     return produceState(AppArtCache.peek(app), app.artKey) {
+        // Reset for the new key first: produceState keeps the previous app's value otherwise.
+        value = AppArtCache.peek(app)
         if (value == null) value = AppArtCache.load(context, app)
     }.value
 }
