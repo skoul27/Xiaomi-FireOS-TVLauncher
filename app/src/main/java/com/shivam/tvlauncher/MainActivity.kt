@@ -28,26 +28,27 @@ class MainActivity : ComponentActivity() {
     private var lastStartAt = 0L
 
     private val actions = object : LauncherActions {
-        override fun launch(app: LaunchableApp) = start(app.launchIntent(), "Can't open ${app.label}")
+        override fun launch(app: LaunchableApp) {
+            if (start(app.launchIntent(), "Can't open ${app.label}")) viewModel.recordLaunch(app)
+        }
         override fun pin(app: LaunchableApp) = viewModel.pin(app)
         override fun unpin(app: LaunchableApp) = viewModel.unpin(app)
         override fun move(app: LaunchableApp, row: RowKind, delta: Int) = viewModel.move(app, row, delta)
         override fun hide(app: LaunchableApp) = viewModel.hide(app)
         override fun unhide(app: LaunchableApp) = viewModel.unhide(app)
 
-        override fun openAppInfo(app: LaunchableApp) = start(
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri(app)),
-            "App info isn't available for ${app.label}",
-        )
+        override fun openAppInfo(app: LaunchableApp) {
+            start(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri(app)), "App info isn't available for ${app.label}")
+        }
 
         // The system dialog confirms; onResume's refresh drops the app if it was removed.
-        override fun uninstall(app: LaunchableApp) = start(
-            Intent(Intent.ACTION_DELETE, packageUri(app)),
-            "Can't uninstall ${app.label}",
-        )
+        override fun uninstall(app: LaunchableApp) {
+            start(Intent(Intent.ACTION_DELETE, packageUri(app)), "Can't uninstall ${app.label}")
+        }
 
-        override fun openShortcut(shortcut: SystemShortcut) =
+        override fun openShortcut(shortcut: SystemShortcut) {
             start(Intent(shortcut.intent), "${shortcut.label} isn't available")
+        }
 
         override fun refreshApps() {
             viewModel.refresh()
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
         override fun setShortcutKey(key: ColorKey?) = viewModel.setShortcutKey(key)
         override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
         override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
+        override fun clearRecent() = viewModel.clearRecent()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +71,7 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(
                     ui = ui,
                     shortcuts = shortcuts,
-                    remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutServiceOn),
+                    remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutService.on, shortcutService.enableCommands),
                     homePresses = homePresses,
                     opens = opens,
                     actions = actions,
@@ -87,7 +89,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Whether the accessibility shortcut is turned on; re-checked on resume, after a trip to Settings. */
-    private var shortcutServiceOn by mutableStateOf(false)
+    private var shortcutService by mutableStateOf(ShortcutServiceState(on = false, enableCommands = emptyList()))
 
     /** Counts each time the launcher comes to the front; the screen fades in on each. */
     private var opens by mutableIntStateOf(0)
@@ -102,7 +104,7 @@ class MainActivity : ComponentActivity() {
         inFront = true
         // Picks up installs/uninstalls that happened while we were in the background.
         viewModel.refresh()
-        shortcutServiceOn = isShortcutServiceOn()
+        shortcutService = readShortcutService()
     }
 
     override fun onPause() {
@@ -115,24 +117,47 @@ class MainActivity : ComponentActivity() {
      * never writes it. (AccessibilityManager's enabled list filters by feedback type, and this
      * service declares none, so it would always look off.)
      */
-    private fun isShortcutServiceOn(): Boolean {
+    private fun readShortcutService(): ShortcutServiceState {
         val ours = ComponentName(this, ShortcutKeyService::class.java)
-        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
-        return enabled.split(':').any { ComponentName.unflattenFromString(it.trim()) == ours }
+        val current = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+            .orEmpty().trim().takeUnless { it == "null" }.orEmpty()
+        val listed = current.split(':').any { ComponentName.unflattenFromString(it.trim()) == ours }
+        // Listed but with accessibility switched off as a whole, the system binds nothing.
+        val masterOn = Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1
+        // Appends to whatever is on now (or keeps it, if we're already there), so following the
+        // command never switches another service off.
+        val list = when {
+            listed -> current
+            current.isEmpty() -> ours.flattenToShortString()
+            else -> "$current:${ours.flattenToShortString()}"
+        }
+        return ShortcutServiceState(
+            on = listed && masterOn,
+            enableCommands = listOf(
+                "adb shell settings put secure enabled_accessibility_services $list",
+                "adb shell settings put secure accessibility_enabled 1",
+            ),
+        )
     }
+
+    private class ShortcutServiceState(val on: Boolean, val enableCommands: List<String>)
 
     private fun packageUri(app: LaunchableApp): Uri = Uri.fromParts("package", app.packageName, null)
 
-    private fun start(intent: Intent, failureMessage: String) {
+    /** True if the activity was started. */
+    private fun start(intent: Intent, failureMessage: String): Boolean {
         val now = SystemClock.elapsedRealtime()
-        if (now - lastStartAt < 1_000) return
+        if (now - lastStartAt < 1_000) return false
         lastStartAt = now
-        try {
+        return try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(this, failureMessage, Toast.LENGTH_SHORT).show()
+            false
         } catch (e: SecurityException) {
             Toast.makeText(this, failureMessage, Toast.LENGTH_SHORT).show()
+            false
         }
     }
 

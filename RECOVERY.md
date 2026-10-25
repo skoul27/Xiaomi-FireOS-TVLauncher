@@ -39,7 +39,18 @@ adb shell settings put secure accessibility_enabled 0
 To turn it off from the TV without adb, set "Remote shortcut" to Off in the launcher's System
 panel: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
 If a Fire OS update switches it off, read the current list first and append again, separated by
-`:`, rather than overwriting it.
+`:`, rather than overwriting it:
+
+```sh
+adb shell settings get secure enabled_accessibility_services
+# empty or "null": put just our entry; otherwise put "<current list>:com.shivam.tvlauncher/.ShortcutKeyService"
+adb shell settings put secure enabled_accessibility_services <list>
+adb shell settings put secure accessibility_enabled 1
+```
+
+The launcher checks this for you: when the chosen color button's service isn't enabled, the
+System panel (gear) shows a notice with these two commands already filled in from the current
+list. The launcher only reads the setting; it never changes it.
 
 ## What this depends on
 

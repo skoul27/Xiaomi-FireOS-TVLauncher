@@ -15,6 +15,9 @@ enum class ColorKey(val keyCode: Int, val label: String) {
     }
 }
 
-/** The global shortcut as the System panel shows it: which button, and whether the service is on. */
+/**
+ * The global shortcut as the settings panels show it: which button, whether the service is on,
+ * and the adb commands that would turn it on, built from the current list so they append to it.
+ */
 @Immutable
-data class RemoteShortcut(val key: ColorKey?, val serviceOn: Boolean)
+data class RemoteShortcut(val key: ColorKey?, val serviceOn: Boolean, val enableCommands: List<String> = emptyList())

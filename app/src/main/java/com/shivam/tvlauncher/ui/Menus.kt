@@ -88,13 +88,18 @@ fun AppMenu(
 @Composable
 fun SystemMenu(
     shortcuts: List<SystemShortcut>,
+    remoteShortcut: RemoteShortcut,
     onOpen: (SystemShortcut) -> Unit,
     onLauncherSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
-    MenuDialog(onDismiss) {
+    val key = remoteShortcut.key
+    val shortcutOff = key != null && !remoteShortcut.serviceOn
+    // Wider while the notice shows, so its commands wrap onto fewer lines.
+    MenuDialog(onDismiss, width = if (shortcutOff) 480 else 360) {
         PanelTitle("System")
+        if (key != null && shortcutOff) ShortcutOffNotice(key, remoteShortcut.enableCommands)
         MenuItem("Launcher settings", Modifier.focusRequester(first), onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
@@ -107,6 +112,34 @@ fun SystemMenu(
         for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/**
+ * Health check: the chosen color button won't work outside the launcher because its service is
+ * off (a Fire OS update can do that). Shows the commands to run from a computer; the launcher
+ * itself never changes the setting.
+ */
+@Composable
+private fun ShortcutOffNotice(key: ColorKey, commands: List<String>) {
+    Column(
+        modifier = Modifier
+            .padding(start = 4.dp, end = 4.dp, bottom = 10.dp)
+            .fillMaxWidth()
+            .clip(ItemShape)
+            .background(Color.White.copy(alpha = 0.06f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text("${key.label}-button shortcut is off", style = LauncherText.Label, color = LauncherColors.TextPrimary)
+        Text(
+            "It works inside the launcher only. To turn it back on, run from a computer on this network:",
+            style = LauncherText.Caption,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
+        )
+        for (command in commands) {
+            Text(command, style = LauncherText.Code, color = LauncherColors.TextPrimary, modifier = Modifier.padding(vertical = 1.dp))
+        }
+    }
 }
 
 /** This launcher's own settings. Each row cycles its value on OK and saves at once. */
@@ -125,6 +158,7 @@ fun LauncherSettingsMenu(
             actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
         }
         SettingItem("Animations", if (animations) "On" else "Off") { actions.setAnimations(!animations) }
+        MenuItem("Clear recent", onClick = actions::clearRecent)
         val key = remoteShortcut.key
         SettingItem("Remote shortcut", key?.label ?: "Off") {
             val order = listOf(null) + ColorKey.entries
