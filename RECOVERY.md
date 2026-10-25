@@ -36,8 +36,8 @@ adb shell settings delete secure enabled_accessibility_services
 adb shell settings put secure accessibility_enabled 0
 ```
 
-To turn it off from the TV without adb, set "Remote shortcut" to Off in the launcher's System
-panel: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
+To turn it off from the TV without adb, set "Remote shortcut" to Off under gear → Launcher
+settings: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
 If a Fire OS update switches it off, read the current list first and append again, separated by
 `:`, rather than overwriting it:
 
