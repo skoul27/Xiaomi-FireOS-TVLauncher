@@ -120,7 +120,13 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
-private enum class SettingsPanel { Launcher, More, ConsoleTiles, Backup }
+private enum class SettingsPanel { Launcher, Theme, Shortcuts, More, ConsoleTiles }
+
+private fun LauncherSection.panel(): SettingsPanel = when (this) {
+    LauncherSection.Theme -> SettingsPanel.Theme
+    LauncherSection.Shortcuts -> SettingsPanel.Shortcuts
+    LauncherSection.More -> SettingsPanel.More
+}
 
 /**
  * One screen, no page scroll: the hero fills whatever the My Apps and Consoles sections below it
@@ -300,20 +306,20 @@ fun HomeScreen(
         when (panels.lastOrNull()) {
             SettingsPanel.Launcher -> LauncherSettingsMenu(
                 accent = LocalAccentTheme.current,
-                animations = animate,
-                homeRedirect = homeRedirect,
                 remoteShortcut = remoteShortcut,
+                returnedFrom = LauncherSection.entries.firstOrNull { it.panel() == returnedFrom },
+                onOpen = { openPanel(it.panel()) },
+                onDismiss = closePanel,
+            )
+            SettingsPanel.Theme -> ThemeMenu(
+                accent = LocalAccentTheme.current,
+                animations = animate,
                 actions = actions,
-                focusMore = returnedFrom == SettingsPanel.More,
-                onMore = { openPanel(SettingsPanel.More) },
-                onDismiss = closePanel,
-            )
-            SettingsPanel.More -> MoreMenu(
-                focusBackup = returnedFrom == SettingsPanel.Backup,
+                focusConsoleTiles = returnedFrom == SettingsPanel.ConsoleTiles,
                 onConsoleTiles = { openPanel(SettingsPanel.ConsoleTiles) },
-                onBackup = { openPanel(SettingsPanel.Backup) },
                 onDismiss = closePanel,
             )
+            SettingsPanel.Shortcuts -> ShortcutsMenu(homeRedirect, remoteShortcut, actions, onDismiss = closePanel)
             SettingsPanel.ConsoleTiles -> {
                 ConsoleTilesMenu(
                     ports,
@@ -335,8 +341,8 @@ fun HomeScreen(
                     )
                 }
             }
-            SettingsPanel.Backup -> {
-                BackupMenu(
+            SettingsPanel.More -> {
+                MoreMenu(
                     message = (backup as? BackupState.Message)?.text,
                     actions = actions,
                     onDismiss = {
@@ -356,8 +362,8 @@ fun HomeScreen(
 
     // The status can change while we're in front (a package update briefly drops the service),
     // so read it fresh whenever a panel that shows it opens.
-    val launcherSettingsOpen = panels.lastOrNull() == SettingsPanel.Launcher
-    LaunchedEffect(showSystem, launcherSettingsOpen) { if (showSystem || launcherSettingsOpen) actions.recheckShortcut() }
+    val shortcutsOpen = panels.lastOrNull() == SettingsPanel.Shortcuts
+    LaunchedEffect(showSystem, shortcutsOpen) { if (showSystem || shortcutsOpen) actions.recheckShortcut() }
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
     BackHandler { focusStart() }
@@ -369,7 +375,7 @@ fun HomeScreen(
         menu = null
         popup = null
         showSystem = false
-        if (panels.lastOrNull() == SettingsPanel.Backup) actions.dismissBackup()
+        if (panels.lastOrNull() == SettingsPanel.More) actions.dismissBackup()
         panels = emptyList()
         renaming = null
         showAbout = false

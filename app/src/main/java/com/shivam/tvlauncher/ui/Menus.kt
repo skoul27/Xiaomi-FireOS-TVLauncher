@@ -180,36 +180,70 @@ private fun ShortcutOffNotice(key: ColorKey, commands: List<String>) {
     }
 }
 
-/** This launcher's own settings. Each row cycles its value on OK and saves at once. */
+/** Where Launcher settings leads. Back from one of them puts focus on its row again. */
+enum class LauncherSection { Theme, Shortcuts, More }
+
+/** This launcher's own settings: three groups, each a panel of its own. */
 @Composable
 fun LauncherSettingsMenu(
     accent: Accent,
-    animations: Boolean,
-    homeRedirect: Boolean,
     remoteShortcut: RemoteShortcut,
-    actions: LauncherActions,
-    /** Back from More: focus lands on More again, not the first row. */
-    focusMore: Boolean,
-    onMore: () -> Unit,
+    returnedFrom: LauncherSection?,
+    onOpen: (LauncherSection) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val first = remember { FocusRequester() }
-    val more = remember { FocusRequester() }
+    val rows = remember { LauncherSection.entries.associateWith { FocusRequester() } }
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Launcher settings")
-        SettingItem("Theme", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first)) {
-            actions.setTheme(Accent.entries[(accent.ordinal + 1) % Accent.entries.size])
+        NavItem("Theme", Modifier.focusRequester(rows.getValue(LauncherSection.Theme)), hint = accent.label) {
+            onOpen(LauncherSection.Theme)
         }
-        SettingItem("Animations", if (animations) "On" else "Off") { actions.setAnimations(!animations) }
+        NavItem("Shortcuts", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts)), hint = remoteShortcut.key?.label) {
+            onOpen(LauncherSection.Shortcuts)
+        }
+        NavItem("More settings", Modifier.focusRequester(rows.getValue(LauncherSection.More)), hint = "Backup") {
+            onOpen(LauncherSection.More)
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { rows.getValue(returnedFrom ?: LauncherSection.Theme).requestFocus() } }
+}
+
+/** Accent colour, animations, and the console cards. Left and right change a value. */
+@Composable
+fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, focusConsoleTiles: Boolean, onConsoleTiles: () -> Unit, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    val tiles = remember { FocusRequester() }
+    MenuDialog(onDismiss, width = 460) {
+        PanelTitle("Theme")
+        val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
+        SettingItem("Accent", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first), onStep = stepAccent) {
+            stepAccent(1)
+        }
+        SettingItem("Animations", if (animations) "On" else "Off", onStep = { actions.setAnimations(!animations) }) {
+            actions.setAnimations(!animations)
+        }
+        NavItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
+    }
+    LaunchedEffect(Unit) { runCatching { (if (focusConsoleTiles) tiles else first).requestFocus() } }
+}
+
+/** What the Home button and a colour button on the remote do. Left and right change a value. */
+@Composable
+fun ShortcutsMenu(homeRedirect: Boolean, remoteShortcut: RemoteShortcut, actions: LauncherActions, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    MenuDialog(onDismiss, width = 460) {
+        PanelTitle("Shortcuts")
         // Rides on the remote shortcut's service, so it needs that turned on too.
-        SettingItem("Home button", if (homeRedirect) "This launcher" else "Fire TV home") {
-            actions.setHomeRedirect(!homeRedirect)
-        }
+        SettingItem(
+            "Home button",
+            if (homeRedirect) "This launcher" else "Fire TV home",
+            modifier = Modifier.focusRequester(first),
+            onStep = { actions.setHomeRedirect(!homeRedirect) },
+        ) { actions.setHomeRedirect(!homeRedirect) }
         val key = remoteShortcut.key
-        SettingItem("Remote shortcut", key?.label ?: "Off") {
-            val order = listOf(null) + ColorKey.entries
-            actions.setShortcutKey(order[(order.indexOf(key) + 1) % order.size])
-        }
+        val order = listOf(null) + ColorKey.entries
+        val stepKey = { delta: Int -> actions.setShortcutKey(order.stepFrom(key, delta)) }
+        SettingItem("Remote shortcut", key?.label ?: "Off", onStep = stepKey) { stepKey(1) }
         // Only worth a line when the shortcut is chosen but can't work outside the launcher.
         if (key != null && !remoteShortcut.serviceOn) {
             Text(
@@ -219,30 +253,19 @@ fun LauncherSettingsMenu(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
-        NavItem("More settings", Modifier.focusRequester(more), hint = "Console tiles, Backup", onClick = onMore)
     }
-    LaunchedEffect(Unit) { runCatching { (if (focusMore) more else first).requestFocus() } }
+    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
-/** Less-used settings, a level down from Launcher settings. */
-@Composable
-fun MoreMenu(focusBackup: Boolean, onConsoleTiles: () -> Unit, onBackup: () -> Unit, onDismiss: () -> Unit) {
-    val tiles = remember { FocusRequester() }
-    val backup = remember { FocusRequester() }
-    MenuDialog(onDismiss) {
-        PanelTitle("More settings")
-        NavItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
-        NavItem("Backup", Modifier.focusRequester(backup), onClick = onBackup)
-    }
-    LaunchedEffect(Unit) { runCatching { (if (focusBackup) backup else tiles).requestFocus() } }
-}
+/** The entry [delta] places along from [current], wrapping at both ends. */
+private fun <T> List<T>.stepFrom(current: T, delta: Int): T = this[(indexOf(current) + delta).mod(size)]
 
 /** Export or import the setup file, with the result of the last one underneath. */
 @Composable
-fun BackupMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) {
+fun MoreMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("Backup")
+        PanelTitle("More settings")
         Text(
             "Your My Apps, hidden apps, console tiles, theme and settings, as one file on this TV. " +
                 "Copying it to or from a computer needs adb.",

@@ -30,7 +30,7 @@ through Amazon's home on the way to its own screen; that is left alone).
   it reconnects.
 - **Fire OS Settings** from the gear menu: the one pass through Amazon's home on the way there
   (within 10 s) is left alone, since it can take over a second right after a restart.
-- **To get Amazon's home back** from the TV: gear → Launcher settings → Home button →
+- **To get Amazon's home back** from the TV: gear → Launcher settings → Shortcuts → Home button →
   "Fire TV home". From a computer: turn the service off with the commands below.
 
 This launcher was also set as the preferred Home app on 2026-10-25. Fire OS ignores that today;
@@ -65,7 +65,7 @@ adb shell settings put secure accessibility_enabled 0
 ```
 
 To turn it off from the TV without adb, set "Remote shortcut" to Off under gear → Launcher
-settings: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
+settings → Shortcuts: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
 If a Fire OS update switches it off, read the current list first and append again, separated by
 `:`, rather than overwriting it:
 
@@ -87,13 +87,13 @@ remote shortcut can be saved as one JSON file. (Backups from before console tile
 version 1, still import; they leave your current console tiles as they are.) Fire OS doesn't let adb into the app's folder, and the launcher has no
 storage permission, so the file goes through a small bridge in the launcher that only answers adb.
 
-Back up (on the TV: gear → Launcher settings → More → Backup → Export backup, then on the computer):
+Back up (on the TV: gear → Launcher settings → More settings → Export backup, then on the computer):
 
 ```sh
 adb shell content read --uri content://com.shivam.tvlauncher.backup/launcher-backup.json > launcher-backup.json
 ```
 
-Restore (on the computer, then on the TV: gear → Launcher settings → More → Backup → Import backup):
+Restore (on the computer, then on the TV: gear → Launcher settings → More settings → Import backup):
 
 ```sh
 adb shell content write --uri content://com.shivam.tvlauncher.backup/launcher-backup.json < launcher-backup.json
