@@ -229,6 +229,52 @@ object MenuIcons {
         )
     }
     val CloseAll: Path by lazy { icon("M5 13h14v-2H5v2zm-2 4h14v-2H3v2zM7 7v2h14V7H7z") }
+
+    // Settings panels. Paths with holes (dots, cut-outs) fill even-odd.
+    private fun holed(d: String): Path = icon(d).apply { fillType = PathFillType.EvenOdd }
+
+    val Tune: Path by lazy {
+        icon("M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z")
+    }
+    val Palette: Path by lazy {
+        holed(
+            "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16" +
+                "c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4" +
+                "C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5" +
+                "S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+        )
+    }
+    val Sparkle: Path by lazy { icon("M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z") }
+    val Home: Path by lazy { icon("M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z") }
+    val Remote: Path by lazy {
+        holed(
+            "M15 9H9c-.55 0-1 .45-1 1v12c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V10c0-.55-.45-1-1-1zm-3 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" +
+                "M7.05 6.05l1.41 1.41C9.37 6.56 10.62 6 12 6s2.63.56 3.54 1.46l1.41-1.41C15.68 4.78 13.93 4 12 4s-3.68.78-4.95 2.05z" +
+                "M12 0C8.96 0 6.21 1.23 4.22 3.22l1.41 1.41C7.26 3.01 9.51 2 12 2s4.74 1.01 6.36 2.64l1.41-1.41C17.79 1.23 15.04 0 12 0z",
+        )
+    }
+    val Gamepad: Path by lazy {
+        holed(
+            "M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2z" +
+                "m4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9" +
+                "s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+        )
+    }
+    val Input: Path by lazy {
+        icon("M21 3.01H3c-1.1 0-2 .9-2 2V9h2V4.99h18v14.03H3V15H1v4.01c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98v-14c0-1.11-.9-2-2-2zM11 16l4-4-4-4v3H1v2h10v3z")
+    }
+    val Cloud: Path by lazy {
+        icon("M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z")
+    }
+    val Upload: Path by lazy { icon("M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z") }
+    val Download: Path by lazy { icon("M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z") }
+    val OpenExternal: Path by lazy {
+        icon("M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z")
+    }
+    val Edit: Path by lazy {
+        icon("M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z")
+    }
+    val Check: Path by lazy { icon("M9 16.17L4.83 12l-1.42 1.42L9 19 21 7l-1.41-1.41z") }
 }
 
 /** A 3×3 grid of rounded squares: all apps. */

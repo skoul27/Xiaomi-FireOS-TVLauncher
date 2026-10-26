@@ -193,8 +193,8 @@ fun SystemMenu(
     val key = remoteShortcut.key
     val shortcutOff = key != null && !remoteShortcut.serviceOn
     // Wider while the notice shows, so its commands wrap onto fewer lines.
-    MenuDialog(onDismiss, width = if (shortcutOff) 480 else 360) {
-        PanelTitle("Settings")
+    MenuDialog(onDismiss, width = if (shortcutOff) 480 else 400) {
+        PanelHeader("Settings", "Apps, launcher and Fire OS") { GearIcon(it, size = 26.dp) }
         if (key != null && shortcutOff) ShortcutOffNotice(key, remoteShortcut.enableCommands)
         NavItem(
             "Hidden apps",
@@ -204,9 +204,10 @@ fun SystemMenu(
                 else -> "$hiddenCount apps you've hidden"
             },
             Modifier.focusRequester(first),
+            icon = MenuIcons.Hide,
             onClick = onHiddenApps,
         )
-        NavItem("Launcher settings", "Theme, shortcuts, console tiles and backup", onClick = onLauncherSettings)
+        NavItem("Launcher settings", "Theme, shortcuts, console tiles and backup", icon = MenuIcons.Tune, onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -215,9 +216,9 @@ fun SystemMenu(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
-        for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
+        for (shortcut in shortcuts) MenuItem(shortcut.label, icon = MenuIcons.OpenExternal) { onOpen(shortcut) }
         MenuDivider()
-        NavItem("About", "Version and developer", onClick = onAbout)
+        NavItem("About", "Version and developer", icon = MenuIcons.Info, onClick = onAbout)
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
@@ -262,17 +263,17 @@ fun LauncherSettingsMenu(
 ) {
     val rows = remember { LauncherSection.entries.associateWith { FocusRequester() } }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("Launcher settings")
-        NavItem("Theme", "Accent colour and animations", Modifier.focusRequester(rows.getValue(LauncherSection.Theme))) {
+        PanelHeader("Launcher settings", "Make this launcher yours", MenuIcons.Tune)
+        NavItem("Theme", "Accent colour and animations", Modifier.focusRequester(rows.getValue(LauncherSection.Theme)), MenuIcons.Palette) {
             onOpen(LauncherSection.Theme)
         }
-        NavItem("Shortcuts", "Home button and remote shortcut", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts))) {
+        NavItem("Shortcuts", "Home button and remote shortcut", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts)), MenuIcons.Remote) {
             onOpen(LauncherSection.Shortcuts)
         }
-        NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(rows.getValue(LauncherSection.ConsoleTiles))) {
+        NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(rows.getValue(LauncherSection.ConsoleTiles)), MenuIcons.Gamepad) {
             onOpen(LauncherSection.ConsoleTiles)
         }
-        NavItem("More settings", "Export or import a backup", Modifier.focusRequester(rows.getValue(LauncherSection.More))) {
+        NavItem("More settings", "Export or import a backup", Modifier.focusRequester(rows.getValue(LauncherSection.More)), MenuIcons.Cloud) {
             onOpen(LauncherSection.More)
         }
     }
@@ -284,10 +285,10 @@ fun LauncherSettingsMenu(
 fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("Theme")
+        PanelHeader("Theme", "Colour and motion", MenuIcons.Palette)
         val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
-        SettingItem("Accent", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first), onStep = stepAccent)
-        SettingItem("Animations", if (animations) "On" else "Off", onStep = { actions.setAnimations(!animations) })
+        SettingItem("Accent", accent.label, swatch = accent.color, icon = MenuIcons.Palette, modifier = Modifier.focusRequester(first), onStep = stepAccent)
+        SettingItem("Animations", if (animations) "On" else "Off", icon = MenuIcons.Sparkle, onStep = { actions.setAnimations(!animations) })
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
@@ -297,17 +298,24 @@ fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, onD
 fun ShortcutsMenu(homeRedirect: Boolean, remoteShortcut: RemoteShortcut, actions: LauncherActions, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("Shortcuts")
+        PanelHeader("Shortcuts", "Home and remote buttons", MenuIcons.Remote)
         // Rides on the remote shortcut's service, so it needs that turned on too.
         SettingItem(
             "Home button",
             if (homeRedirect) "This launcher" else "Fire TV home",
+            icon = MenuIcons.Home,
             modifier = Modifier.focusRequester(first),
             onStep = { actions.setHomeRedirect(!homeRedirect) },
         )
         val key = remoteShortcut.key
         val order = listOf(null) + ColorKey.entries
-        SettingItem("Remote shortcut", key?.label ?: "Off", onStep = { delta -> actions.setShortcutKey(order.stepFrom(key, delta)) })
+        SettingItem(
+            "Remote shortcut",
+            key?.label ?: "Off",
+            swatch = key?.swatch(),
+            icon = MenuIcons.Remote,
+            onStep = { delta -> actions.setShortcutKey(order.stepFrom(key, delta)) },
+        )
         // Only worth a line when the shortcut is chosen but can't work outside the launcher.
         if (key != null && !remoteShortcut.serviceOn) {
             Text(
@@ -321,6 +329,14 @@ fun ShortcutsMenu(homeRedirect: Boolean, remoteShortcut: RemoteShortcut, actions
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
+/** The colour of the button on the remote, for the swatch beside its name. */
+private fun ColorKey.swatch(): Color = when (this) {
+    ColorKey.Red -> Color(0xFFE53935)
+    ColorKey.Green -> Color(0xFF43A047)
+    ColorKey.Yellow -> Color(0xFFFDD835)
+    ColorKey.Blue -> Color(0xFF1E88E5)
+}
+
 /** The entry [delta] places along from [current], wrapping at both ends. */
 private fun <T> List<T>.stepFrom(current: T, delta: Int): T = this[(indexOf(current) + delta).mod(size)]
 
@@ -329,7 +345,7 @@ private fun <T> List<T>.stepFrom(current: T, delta: Int): T = this[(indexOf(curr
 fun MoreMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("More settings")
+        PanelHeader("More settings", "Backup and restore", MenuIcons.Cloud)
         Text(
             "Your My Apps, hidden apps, console tiles, theme and settings, as one file on this TV. " +
                 "Copying it to or from a computer needs adb.",
@@ -337,8 +353,8 @@ fun MoreMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) 
             color = LauncherColors.TextSecondary,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
         )
-        MenuItem("Export backup", Modifier.focusRequester(first), onClick = actions::exportBackup)
-        MenuItem("Import backup", onClick = actions::importBackup)
+        MenuItem("Export backup", Modifier.focusRequester(first), icon = MenuIcons.Upload, onClick = actions::exportBackup)
+        MenuItem("Import backup", icon = MenuIcons.Download, onClick = actions::importBackup)
         if (message != null) {
             Text(
                 message,
@@ -365,7 +381,7 @@ fun ConsoleTilesMenu(
 ) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 520) {
-        PanelTitle("Console tiles")
+        PanelHeader("Console tiles", "One card per HDMI port", MenuIcons.Gamepad)
         Text(
             "Left and right choose each port's tile. Automatic shows a port only while its device " +
                 "announces itself over HDMI; a tile always shows it, and Hidden never does.",
@@ -386,12 +402,13 @@ fun ConsoleTilesMenu(
             SettingItem(
                 port.device?.let { "${port.label} · $it" } ?: port.label,
                 tile.mode.label,
+                icon = MenuIcons.Input,
                 modifier = if (index == 0) Modifier.focusRequester(first) else Modifier,
                 onStep = { delta -> onSet(port, tile.copy(mode = TileMode.entries.stepFrom(tile.mode, delta))) },
             )
             if (tile.mode == TileMode.Other) {
                 // OK opens the keyboard; no arrows, since there's nothing to step through.
-                SettingItem("      Name", tile.name.ifBlank { port.device ?: port.label }, onClick = { onRename(port) })
+                SettingItem("Name", tile.name.ifBlank { port.device ?: port.label }, icon = MenuIcons.Edit, indent = true, onClick = { onRename(port) })
             }
         }
     }
@@ -409,7 +426,7 @@ fun RenameTileMenu(port: HdmiPort, initial: String, onSave: (String) -> Unit, on
     val save by rememberUpdatedState(onSave)
     var field by remember { mutableStateOf<EditText?>(null) }
     MenuDialog(onDismiss, width = 460) {
-        PanelTitle("Name the ${port.label} tile")
+        PanelHeader("Name the ${port.label} tile", "Shown on its console card", MenuIcons.Edit)
         AndroidView(
             factory = { context ->
                 EditText(context).apply {
@@ -435,8 +452,8 @@ fun RenameTileMenu(port: HdmiPort, initial: String, onSave: (String) -> Unit, on
             modifier = Modifier.fillMaxWidth().clip(ItemShape).background(Color.White.copy(alpha = 0.10f)),
         )
         Spacer(Modifier.height(8.dp))
-        MenuItem("Save") { save(field?.text?.toString().orEmpty()) }
-        MenuItem("Cancel", onClick = onDismiss)
+        MenuItem("Save", icon = MenuIcons.Check) { save(field?.text?.toString().orEmpty()) }
+        MenuItem("Cancel", icon = MenuIcons.Close, onClick = onDismiss)
     }
     LaunchedEffect(field) {
         val edit = field ?: return@LaunchedEffect
@@ -467,7 +484,7 @@ fun AboutMenu(onDismiss: () -> Unit) {
     val info = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull() }
     val close = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 420) {
-        PanelTitle("About")
+        PanelHeader(stringResource(R.string.app_name), "Version and developer", MenuIcons.Info)
         AboutRow("Version", info?.let { "${it.versionName} (build ${it.longVersionCode})" } ?: "Unknown")
         AboutRow("Installed", info?.let { formatDate(it.lastUpdateTime) } ?: "Unknown")
         AboutRow("Developer", "Shivam Koul")
@@ -501,15 +518,15 @@ private fun formatDate(millis: Long): String {
 fun ImportConfirmMenu(summary: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
     val cancel = remember { FocusRequester() }
     MenuDialog(onCancel, width = 460) {
-        PanelTitle("Import backup?")
+        PanelHeader("Import backup?", "This replaces your current setup", MenuIcons.Download)
         Text(
             summary,
             style = LauncherText.Body,
             color = LauncherColors.TextSecondary,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
         )
-        MenuItem("Cancel", Modifier.focusRequester(cancel), onClick = onCancel)
-        MenuItem("Replace my setup", onClick = onConfirm)
+        MenuItem("Cancel", Modifier.focusRequester(cancel), icon = MenuIcons.Close, onClick = onCancel)
+        MenuItem("Replace my setup", icon = MenuIcons.Check, onClick = onConfirm)
     }
     LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
 }
@@ -525,6 +542,9 @@ private fun SettingItem(
     value: String,
     swatch: Color? = null,
     modifier: Modifier = Modifier,
+    icon: Path? = null,
+    /** Sits under the row before it (an Other tile's Name under its port). */
+    indent: Boolean = false,
     onStep: ((Int) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -540,10 +560,12 @@ private fun SettingItem(
         onStep(delta)
         true
     }
-    FocusRow(modifier = modifier.then(stepKeys).height(48.dp), onClick = onClick) { focused ->
+    FocusRow(modifier = modifier.then(stepKeys).height(50.dp), onClick = onClick) { focused ->
         val color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary
         val valueColor = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary
-        Text(label, style = LauncherText.Body, color = color, modifier = Modifier.weight(1f))
+        if (indent) Spacer(Modifier.width(34.dp))
+        RowIcon(icon, color)
+        Text(label, style = LauncherText.Body, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         if (swatch != null) {
             Box(Modifier.size(12.dp).clip(PillShape).background(swatch))
             Spacer(Modifier.width(8.dp))
@@ -560,8 +582,9 @@ private fun SettingItem(
  * no arrow, so it can't be mistaken for a value that left/right change.
  */
 @Composable
-private fun NavItem(text: String, summary: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun NavItem(text: String, summary: String, modifier: Modifier = Modifier, icon: Path? = null, onClick: () -> Unit) {
     FocusRow(modifier = modifier.height(64.dp), onClick = onClick) { focused ->
+        RowIcon(icon, if (focused) LauncherColors.Ink else LauncherColors.TextPrimary)
         Column {
             Text(text, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary)
             Text(
@@ -617,34 +640,63 @@ private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Compos
     }
 }
 
+/**
+ * The settings panels' header, matching the app menus': an accent-tinted tile holding the panel's
+ * icon beside its title and a line about it, then a divider.
+ */
 @Composable
-private fun PanelTitle(text: String) {
-    Text(
-        text,
-        style = LauncherText.Title,
-        color = LauncherColors.TextPrimary,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 10.dp),
-    )
+private fun PanelHeader(title: String, subtitle: String, icon: @Composable (Color) -> Unit) {
+    val accent = LocalAccent.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(accent.copy(alpha = 0.16f)),
+        ) { icon(accent) }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(title, style = LauncherText.Title, color = LauncherColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = LauncherText.Caption, color = LauncherColors.TextSecondary, maxLines = 1)
+        }
+    }
+    MenuDivider()
 }
 
 @Composable
-private fun MenuItem(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, centered: Boolean = false, onClick: () -> Unit) {
+private fun PanelHeader(title: String, subtitle: String, icon: Path) =
+    PanelHeader(title, subtitle) { PathIcon(icon, it, size = 26.dp) }
+
+/** A row's leading icon, in the row's text colour, with the gap after it. */
+@Composable
+private fun RowIcon(icon: Path?, color: Color) {
+    if (icon == null) return
+    PathIcon(icon, color, size = 20.dp)
+    Spacer(Modifier.width(14.dp))
+}
+
+@Composable
+private fun MenuItem(
+    text: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    centered: Boolean = false,
+    icon: Path? = null,
+    onClick: () -> Unit,
+) {
     FocusRow(
-        modifier = modifier.height(48.dp),
+        modifier = modifier.height(50.dp),
         horizontalArrangement = if (centered) Arrangement.Center else Arrangement.Start,
         onClick = { if (enabled) onClick() },
     ) { focused ->
-        Text(
-            text,
-            style = LauncherText.Body,
-            color = when {
-                focused -> LauncherColors.Ink
-                enabled -> LauncherColors.TextPrimary
-                else -> LauncherColors.TextTertiary
-            },
-        )
+        val color = when {
+            focused -> LauncherColors.Ink
+            enabled -> LauncherColors.TextPrimary
+            else -> LauncherColors.TextTertiary
+        }
+        RowIcon(icon, color)
+        Text(text, style = LauncherText.Body, color = color)
     }
 }
 
