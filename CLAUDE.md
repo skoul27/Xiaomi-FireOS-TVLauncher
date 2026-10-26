@@ -64,10 +64,8 @@ already made (2026-10-26), and what needs doing first:
 - **Repo:** a new public repo, provisionally `Xiaomi-FireOS-TVLauncher-PROD`.
 - **License:** MIT, copyright skoul27.
 - **PlayStation logo:** Sony's trademark (`ui/ConsoleTile.kt`, traced from Wikimedia).
-  The public version drops the PS5 card and instead shows every HDMI port, found at
-  runtime through `TvInputManager` (TYPE_HDMI inputs with no parent; a child input
-  is the HDMI-CEC device on that port and can name the card). The private build
-  keeps the PS5 card.
+  HDMI ports are now discovered at runtime in both builds (see Console tiles below);
+  the open question is only the brand marks.
 - **Package ID:** rename to `com.skoul27.tvlauncher` in the public version, so it can
   sit beside this personal app on the same TV (same ID + different key = can't install).
 - **Release key:** a new release keystore for public APKs on GitHub Releases, kept out
@@ -76,4 +74,8 @@ already made (2026-10-26), and what needs doing first:
 - **Docs:** a README (what it is, screenshots, sideloading, the Fire OS Home-button
   caveat), and `RECOVERY.md` rewritten for general users: `<TV-IP>` instead of the
   real IP, and without the dated notes about this TV.
-- The developer line in Launcher settings (`skoul27 · koul@duck.com`) stays.
+- The About panel (gear → About: version, developer Shivam Koul, koul@duck.com) stays.
+- Console tiles carry over as they are (Automatic / PlayStation / Xbox / Nintendo / Other /
+  Hidden per HDMI port, `Consoles.kt`). Xbox and Nintendo Switch marks come from Simple Icons
+  11.0.0 (CC0 paths), but the marks themselves are still Microsoft's and Nintendo's trademarks,
+  same as the PlayStation one: decide on all three together before publishing.

@@ -60,8 +60,11 @@ import androidx.tv.material3.Text
 import com.shivam.tvlauncher.BackupState
 import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.Console
-import com.shivam.tvlauncher.Consoles
+import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
+import com.shivam.tvlauncher.PortTile
+import com.shivam.tvlauncher.TileMode
+import com.shivam.tvlauncher.consolesFor
 import com.shivam.tvlauncher.LauncherUi
 import com.shivam.tvlauncher.RemoteShortcut
 import com.shivam.tvlauncher.RowKind
@@ -89,6 +92,7 @@ interface LauncherActions {
     fun setTheme(accent: Accent)
     fun setAnimations(enabled: Boolean)
     fun setHomeRedirect(enabled: Boolean)
+    fun setConsoleTile(inputId: String, tile: PortTile)
     /** Re-reads whether the shortcut service is on; the panels call it as they open. */
     fun recheckShortcut()
     fun exportBackup()
@@ -128,6 +132,8 @@ fun HomeScreen(
     shortcuts: List<SystemShortcut>,
     remoteShortcut: RemoteShortcut,
     homeRedirect: Boolean,
+    ports: List<HdmiPort>,
+    consoleTiles: Map<String, PortTile>,
     homePresses: Int,
     opens: Int,
     backup: BackupState?,
@@ -145,6 +151,10 @@ fun HomeScreen(
     var popup by remember { mutableStateOf<AppsPopup?>(null) }
     var showSystem by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showConsoleTiles by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<HdmiPort?>(null) }
+    var showAbout by remember { mutableStateOf(false) }
+    val consoles = remember(ports, consoleTiles) { consolesFor(ports, consoleTiles) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
     var pendingFocus by remember { mutableStateOf<MenuTarget?>(null) }
     val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
@@ -223,10 +233,18 @@ fun HomeScreen(
                 }
             }
 
-            Spacer(Modifier.height(SectionGap))
-            SectionHeader("Consoles")
-            Spacer(Modifier.height(HeaderGap))
-            ConsolesRow(onOpen = actions::openConsole, modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps))
+            // Nothing to show (every console off and Automatic): no section, and the hero takes the room.
+            if (consoles.isNotEmpty()) {
+                Spacer(Modifier.height(SectionGap))
+                SectionHeader("Consoles")
+                Spacer(Modifier.height(HeaderGap))
+                ConsolesRow(
+                    consoles,
+                    onOpen = actions::openConsole,
+                    onLongPress = { showConsoleTiles = true },
+                    modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps),
+                )
+            }
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
@@ -267,10 +285,13 @@ fun HomeScreen(
                 onHiddenApps = { showSystem = false; if (ui != null) popup = AppsPopup.Hidden },
                 onOpen = { showSystem = false; actions.openShortcut(it) },
                 onLauncherSettings = { showSystem = false; showSettings = true },
+                onAbout = { showSystem = false; showAbout = true },
                 onDismiss = { showSystem = false },
             )
         }
-        if (showSettings) {
+        if (showAbout) AboutMenu(onDismiss = { showAbout = false })
+        // Out of sight while Console tiles is open over it: two glass panels stacked read as clutter.
+        if (showSettings && !showConsoleTiles) {
             LauncherSettingsMenu(
                 accent = LocalAccentTheme.current,
                 animations = animate,
@@ -278,6 +299,7 @@ fun HomeScreen(
                 remoteShortcut = remoteShortcut,
                 backupMessage = (backup as? BackupState.Message)?.text,
                 actions = actions,
+                onConsoleTiles = { showConsoleTiles = true },
                 onDismiss = {
                     showSettings = false
                     actions.dismissBackup()
@@ -285,6 +307,28 @@ fun HomeScreen(
             )
             (backup as? BackupState.ConfirmImport)?.let { pending ->
                 ImportConfirmMenu(pending.summary, onConfirm = actions::confirmImport, onCancel = actions::dismissBackup)
+            }
+        }
+        // Closing it goes back to Launcher settings when it was opened from there.
+        if (showConsoleTiles) {
+            ConsoleTilesMenu(
+                ports,
+                consoleTiles,
+                onSet = { port, tile -> actions.setConsoleTile(port.inputId, tile) },
+                onRename = { renaming = it },
+                onDismiss = { showConsoleTiles = false },
+            )
+            renaming?.let { port ->
+                val tile = consoleTiles[port.inputId] ?: PortTile(TileMode.Other)
+                RenameTileMenu(
+                    port,
+                    initial = tile.name,
+                    onSave = { name ->
+                        actions.setConsoleTile(port.inputId, tile.copy(name = name))
+                        renaming = null
+                    },
+                    onDismiss = { renaming = null },
+                )
             }
         }
 
@@ -306,6 +350,9 @@ fun HomeScreen(
         popup = null
         showSystem = false
         showSettings = false
+        showConsoleTiles = false
+        renaming = null
+        showAbout = false
         // A closing dialog hands focus back to our window; wait for that, or it overrides us.
         snapshotFlow { windowInfo.isWindowFocused }.first { it }
         focusStart()
@@ -345,24 +392,27 @@ private fun OpenVeil(opens: Int) {
 }
 
 /**
- * A plain Row, not lazy: there are only a few consoles, and a Row doesn't clip their glow, so it
- * needs no bleed.
+ * A plain Row, not lazy: a TV has only a few HDMI ports, and a Row doesn't clip their glow, so it
+ * needs no bleed. Two wide cards fit across; with more, all of them go compact.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun ConsolesRow(onOpen: (Console) -> Unit, modifier: Modifier = Modifier) {
+private fun ConsolesRow(consoles: List<Console>, onOpen: (Console) -> Unit, onLongPress: () -> Unit, modifier: Modifier = Modifier) {
+    val compact = consoles.size > 2
     Row(
         horizontalArrangement = Arrangement.spacedBy(TileSize.Console.gap),
         modifier = modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
     ) {
         // Left and right stay in the row instead of jumping up to a tile or the top bar.
-        Consoles.forEachIndexed { index, console ->
+        consoles.forEachIndexed { index, console ->
             ConsoleTile(
                 console,
+                compact = compact,
                 onClick = { onOpen(console) },
+                onLongClick = onLongPress,
                 modifier = Modifier.focusProperties {
                     if (index == 0) left = FocusRequester.Cancel
-                    if (index == Consoles.lastIndex) right = FocusRequester.Cancel
+                    if (index == consoles.lastIndex) right = FocusRequester.Cancel
                 },
             )
         }

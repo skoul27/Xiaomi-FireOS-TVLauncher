@@ -30,6 +30,8 @@ data class LauncherPrefs(
     val animations: Boolean = true,
     /** Open this launcher whenever Amazon's home screen comes up (Fire OS sends Home there). */
     val homeRedirect: Boolean = true,
+    /** Console tile per HDMI port, by TV input id; ports not listed are Automatic. */
+    val consoleTiles: Map<String, PortTile> = emptyMap(),
 )
 
 private val Context.launcherDataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher")
@@ -52,6 +54,9 @@ class LauncherPrefsStore(context: Context) {
             stored[Theme] = next.theme
             stored[Animations] = next.animations
             stored[HomeRedirect] = next.homeRedirect
+            stored[ConsoleTiles] = next.consoleTiles.entries.joinToString(Separator) { (input, tile) ->
+                "$input$Field${tile.mode.name}$Field${tile.name}"
+            }
             // Left by a removed "Recent" feature; drop it so no launch history stays on disk.
             stored.remove(RemovedRecent)
         }
@@ -68,14 +73,25 @@ class LauncherPrefsStore(context: Context) {
         theme = this[Theme].orEmpty(),
         animations = this[Animations] ?: true,
         homeRedirect = this[HomeRedirect] ?: true,
+        consoleTiles = this[ConsoleTiles].toConsoleTiles(),
     )
 
     private fun String?.toPackageList(): List<String> =
         this?.split(Separator)?.filter { it.isNotBlank() }.orEmpty()
 
+    /** One "input id, mode, name" line per port; lines with an unknown mode are dropped. */
+    private fun String?.toConsoleTiles(): Map<String, PortTile> =
+        this?.split(Separator).orEmpty().mapNotNull { line ->
+            val parts = line.split(Field, limit = 3)
+            val mode = TileMode.entries.firstOrNull { it.name == parts.getOrNull(1) } ?: return@mapNotNull null
+            parts[0] to PortTile(mode, cleanTileName(parts.getOrNull(2).orEmpty()))
+        }.toMap()
+
     private companion object {
         // Package names can't contain newlines, so a joined string keeps order cheaply.
         const val Separator = "\n"
+        // Input ids and tile names hold no control characters, so a tab splits a tile's fields.
+        const val Field = "\t"
         val Pinned = stringPreferencesKey("pinned")
         val Hidden = stringSetPreferencesKey("hidden")
         val AllOrder = stringPreferencesKey("all_order")
@@ -85,6 +101,7 @@ class LauncherPrefsStore(context: Context) {
         val Theme = stringPreferencesKey("theme")
         val Animations = booleanPreferencesKey("animations")
         val HomeRedirect = booleanPreferencesKey("home_redirect")
+        val ConsoleTiles = stringPreferencesKey("console_tiles")
         val RemovedRecent = stringPreferencesKey("recent")
     }
 }

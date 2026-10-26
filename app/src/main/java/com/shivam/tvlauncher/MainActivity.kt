@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
         override fun setTheme(accent: Accent) = viewModel.setTheme(accent.name)
         override fun setAnimations(enabled: Boolean) = viewModel.setAnimations(enabled)
         override fun setHomeRedirect(enabled: Boolean) = viewModel.setHomeRedirect(enabled)
+        override fun setConsoleTile(inputId: String, tile: PortTile) = viewModel.setConsoleTile(inputId, tile)
         override fun recheckShortcut() {
             shortcutService = readShortcutService()
         }
@@ -91,11 +92,14 @@ class MainActivity : ComponentActivity() {
                 val ui by viewModel.ui.collectAsStateWithLifecycle()
                 val shortcuts by viewModel.shortcuts.collectAsStateWithLifecycle()
                 val backup by viewModel.backup.collectAsStateWithLifecycle()
+                val ports by viewModel.ports.collectAsStateWithLifecycle()
                 HomeScreen(
                     ui = ui,
                     shortcuts = shortcuts,
                     remoteShortcut = RemoteShortcut(settings.shortcutKey, shortcutService.on, shortcutService.enableCommands),
                     homeRedirect = settings.homeRedirect,
+                    ports = ports,
+                    consoleTiles = settings.consoleTiles,
                     homePresses = homePresses,
                     opens = opens,
                     backup = backup,

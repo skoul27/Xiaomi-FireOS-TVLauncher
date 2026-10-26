@@ -52,6 +52,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     /** Settings screens that open on this device right now; re-checked on every refresh. */
     val shortcuts: StateFlow<List<SystemShortcut>> = _shortcuts
 
+    /** The TV's HDMI ports, kept current as devices announce themselves or go. */
+    val ports: StateFlow<List<HdmiPort>> = hdmiPortsFlow(application)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     private var refreshJob: Job? = null
 
     /** Re-reads installed apps; cheap after the first run because art is cached. */
@@ -89,6 +93,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setHomeRedirect(enabled: Boolean) = edit { it.copy(homeRedirect = enabled) }
 
+    /** Automatic with no name is the default, so it isn't stored; a name survives cycling past Other. */
+    fun setConsoleTile(inputId: String, tile: PortTile) = edit {
+        val clean = tile.copy(name = cleanTileName(tile.name))
+        it.copy(
+            consoleTiles = if (clean == PortTile(TileMode.Auto)) it.consoleTiles - inputId else it.consoleTiles + (inputId to clean),
+        )
+    }
+
     /** Swaps [app] with its neighbour in [row]; the row's visible order becomes the saved order. */
     fun move(app: LaunchableApp, row: RowKind, delta: Int) {
         val order = ui.value?.row(row)?.map { it.packageName }?.toMutableList() ?: return
@@ -122,7 +134,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             _backup.value = BackupState.Message(
                 if (saved) {
-                    "Saved ${prefs.pinned.size} My Apps, ${prefs.hidden.size} hidden, theme and settings to ${file!!.path}"
+                    "Saved ${prefs.pinned.size} My Apps, ${prefs.hidden.size} hidden, console tiles, theme and settings to ${file!!.path}"
                 } else {
                     "Couldn't save the backup: storage isn't writable right now."
                 },
@@ -164,6 +176,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             append(if (date != null) "Backup from $date: " else "Backup: ")
             append("${contents.pinned.size} My Apps, ${contents.hidden.size} hidden")
             if (missing > 0) append(" ($missing not installed on this TV; kept for if they come back)")
+            // Older backups have no console tiles; importing one leaves the current tiles alone.
+            contents.consoleTiles?.let { append(", ${it.size} console tile${if (it.size == 1) "" else "s"}") }
             append(". Theme ${contents.theme.label}, animations ${if (contents.animations) "on" else "off"}, ")
             append("remote shortcut ${contents.shortcutKey?.label ?: "off"}. ")
             append("This replaces your current setup.")

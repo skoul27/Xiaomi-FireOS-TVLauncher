@@ -30,7 +30,7 @@ class ConsoleActivity : Activity() {
         val name = intent.getStringExtra(EXTRA_NAME).orEmpty()
         tvView = TvView(this)
         message = TextView(this).apply {
-            text = "No signal from $name on HDMI ${intent.getIntExtra(EXTRA_PORT, 0)}.\nTurn it on, or press Back."
+            text = "No signal from $name on ${intent.getStringExtra(EXTRA_PORT).orEmpty()}.\nTurn it on, or press Back."
             setTextColor(Color.WHITE)
             textSize = 22f
             gravity = Gravity.CENTER
@@ -106,6 +106,6 @@ class ConsoleActivity : Activity() {
             Intent(context, ConsoleActivity::class.java)
                 .putExtra(EXTRA_INPUT_ID, console.inputId)
                 .putExtra(EXTRA_NAME, console.name)
-                .putExtra(EXTRA_PORT, console.hdmiPort)
+                .putExtra(EXTRA_PORT, console.port)
     }
 }

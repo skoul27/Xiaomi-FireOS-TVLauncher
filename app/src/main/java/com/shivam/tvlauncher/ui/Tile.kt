@@ -42,6 +42,9 @@ enum class TileSize(val width: Dp, val height: Dp, val gap: Dp) {
 
     /** A wide card two app columns across, so console cards line up with the apps above. */
     Console(width = 154.dp * 2 + 23.dp, height = 96.dp, gap = 23.dp),
+
+    /** One app column across, for when more than two wide console cards wouldn't fit. */
+    ConsoleCompact(width = 154.dp, height = 96.dp, gap = 23.dp),
 }
 
 /** Resting tiles sit back; the focused one comes up to full brightness. */

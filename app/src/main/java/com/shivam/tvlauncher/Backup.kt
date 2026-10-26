@@ -21,11 +21,14 @@ sealed interface BackupState {
 object LauncherBackup {
     const val FILE_NAME = "launcher-backup.json"
     private const val FORMAT = "tv-launcher-backup"
-    private const val VERSION = 1
+    /** 2 added console tiles; version 1 files still import, keeping the current tiles. */
+    private const val VERSION = 2
 
     /** Far above any real backup; stops a wrong file (a video, say) from being read into memory. */
     private const val MAX_BYTES = 256 * 1024
     private const val MAX_PACKAGES = 2000
+    private const val MAX_TILES = 64
+    private const val MAX_INPUT_ID = 255
     private val PackageName = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
 
     fun file(context: Context): File? = context.getExternalFilesDir(null)?.let { File(it, FILE_NAME) }
@@ -37,6 +40,14 @@ object LauncherBackup {
         .put("pinned", JSONArray(prefs.pinned))
         .put("hidden", JSONArray(prefs.hidden.sorted()))
         .put("allOrder", JSONArray(prefs.allOrder))
+        .put(
+            "consoleTiles",
+            JSONArray(
+                prefs.consoleTiles.map { (input, tile) ->
+                    JSONObject().put("input", input).put("tile", tile.mode.name).put("name", tile.name)
+                },
+            ),
+        )
         .put(
             "settings",
             JSONObject()
@@ -55,6 +66,8 @@ object LauncherBackup {
         val theme: Accent,
         val animations: Boolean,
         val shortcutKey: ColorKey?,
+        /** Null in a version 1 backup, which predates console tiles. */
+        val consoleTiles: Map<String, PortTile>?,
     ) {
         fun apply(current: LauncherPrefs): LauncherPrefs = current.copy(
             pinned = pinned,
@@ -63,6 +76,7 @@ object LauncherBackup {
             theme = theme.name,
             animations = animations,
             shortcutKey = shortcutKey,
+            consoleTiles = consoleTiles ?: current.consoleTiles,
             // The backup's pins are the user's choice; don't add the first-run defaults on top.
             seeded = true,
         )
@@ -100,7 +114,7 @@ object LauncherBackup {
         if (json.optString("format") != FORMAT) throw BadBackup("This isn't a TV Launcher backup.")
         val version = json.optInt("version", -1)
         if (version > VERSION) throw BadBackup("This backup is from a newer version of the launcher.")
-        if (version != VERSION) throw BadBackup("This backup's version isn't recognised.")
+        if (version < 1) throw BadBackup("This backup's version isn't recognised.")
 
         val settings = json.optJSONObject("settings") ?: throw BadBackup("The backup has no settings section.")
         val themeName = settings.optString("theme")
@@ -123,7 +137,30 @@ object LauncherBackup {
             theme = theme,
             animations = settings.getBoolean("animations"),
             shortcutKey = shortcutKey,
+            consoleTiles = if (version >= 2) consoleTiles(json) else null,
         )
+    }
+
+    /** The console tile per HDMI port: known modes, sane ids and names, each port once. */
+    private fun consoleTiles(json: JSONObject): Map<String, PortTile> {
+        val array = json.optJSONArray("consoleTiles") ?: throw BadBackup("\"consoleTiles\" is missing or isn't a list.")
+        if (array.length() > MAX_TILES) throw BadBackup("\"consoleTiles\" has too many entries.")
+        val out = LinkedHashMap<String, PortTile>()
+        for (i in 0 until array.length()) {
+            val entry = array.opt(i) as? JSONObject ?: throw BadBackup("\"consoleTiles\" has an entry that isn't an object.")
+            val input = entry.opt("input") as? String ?: throw BadBackup("A console tile has no \"input\".")
+            if (input.isBlank() || input.length > MAX_INPUT_ID || input.any { it.isISOControl() }) {
+                throw BadBackup("A console tile has an invalid input: \"${input.take(60)}\".")
+            }
+            val modeName = entry.opt("tile") as? String
+            val mode = TileMode.entries.firstOrNull { it.name == modeName } ?: throw BadBackup("Unknown console tile \"$modeName\".")
+            val name = entry.opt("name") as? String ?: ""
+            if (name.length > MaxTileName || name.any { it.isISOControl() }) {
+                throw BadBackup("A console tile's name is too long or has invalid characters.")
+            }
+            out[input] = PortTile(mode, name.trim())
+        }
+        return out
     }
 
     /** A required list of package names: right type, sane size, each a well-formed name. */

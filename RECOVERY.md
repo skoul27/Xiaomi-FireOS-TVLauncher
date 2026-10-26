@@ -82,8 +82,9 @@ list. The launcher only reads the setting; it never changes it.
 
 ## Backing up and restoring your setup
 
-Your pins and their order, hidden apps, All apps order, theme, animations and remote shortcut can
-be saved as one JSON file. Fire OS doesn't let adb into the app's folder, and the launcher has no
+Your pins and their order, hidden apps, All apps order, console tiles, theme, animations and
+remote shortcut can be saved as one JSON file. (Backups from before console tiles, format
+version 1, still import; they leave your current console tiles as they are.) Fire OS doesn't let adb into the app's folder, and the launcher has no
 storage permission, so the file goes through a small bridge in the launcher that only answers adb.
 
 Back up (on the TV: gear → Launcher settings → Export backup, then on the computer):
