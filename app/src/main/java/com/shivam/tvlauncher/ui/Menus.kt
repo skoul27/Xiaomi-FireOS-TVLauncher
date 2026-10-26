@@ -73,6 +73,7 @@ import com.shivam.tvlauncher.R
 import com.shivam.tvlauncher.RemoteShortcut
 import com.shivam.tvlauncher.SystemShortcut
 import com.shivam.tvlauncher.TileMode
+import com.shivam.tvlauncher.Wallpaper
 import com.shivam.tvlauncher.rememberAppArt
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -274,14 +275,30 @@ fun LauncherSettingsMenu(
     LaunchedEffect(Unit) { runCatching { rows.getValue(returnedFrom ?: LauncherSection.Theme).requestFocus() } }
 }
 
-/** Accent colour and animations. Left and right change a value. */
+/** Accent colour, background and animations. Left and right change a value. */
 @Composable
-fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, onDismiss: () -> Unit) {
+fun ThemeMenu(
+    accent: Accent,
+    animations: Boolean,
+    wallpaper: Wallpaper,
+    hasPhoto: Boolean,
+    actions: LauncherActions,
+    onDismiss: () -> Unit,
+) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
-        PanelHeader("Theme", "Colour and motion", MenuIcons.Palette)
+        PanelHeader("Theme", "Colour, background and motion", MenuIcons.Palette)
         val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
         SettingItem("Accent", accent.label, swatch = accent.color, icon = MenuIcons.Palette, modifier = Modifier.focusRequester(first), onStep = stepAccent)
+        // Photo is in the cycle only once there's a photo to show.
+        val backgrounds = Wallpaper.entries.filter { it != Wallpaper.Photo || hasPhoto }
+        SettingItem(
+            "Background",
+            wallpaper.label,
+            icon = MenuIcons.Image,
+            onStep = { delta -> actions.setWallpaper(backgrounds.stepFrom(wallpaper.takeIf { it in backgrounds } ?: Wallpaper.Dynamic, delta)) },
+        )
+        MenuItem(if (hasPhoto) "Choose another photo" else "Choose a photo", icon = MenuIcons.AddPhoto, onClick = actions::choosePhoto)
         SettingItem("Animations", if (animations) "On" else "Off", icon = MenuIcons.Sparkle, onStep = { actions.setAnimations(!animations) })
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }

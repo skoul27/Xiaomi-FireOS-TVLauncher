@@ -93,6 +93,25 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setHomeRedirect(enabled: Boolean) = edit { it.copy(homeRedirect = enabled) }
 
+    fun setWallpaper(wallpaper: Wallpaper) = edit { it.copy(wallpaper = wallpaper.name) }
+
+    private val _photoVersion = MutableStateFlow(0)
+
+    /** Bumped each time a new photo is saved, so the screen reloads it. */
+    val photoVersion: StateFlow<Int> = _photoVersion
+
+    /** Copies the picked image in and switches the background to it. */
+    fun savePhoto(uri: android.net.Uri, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) { WallpaperPhoto.save(getApplication(), uri) }
+            if (saved) {
+                _photoVersion.value++
+                prefsStore.update { it.copy(wallpaper = Wallpaper.Photo.name) }
+            }
+            onResult(saved)
+        }
+    }
+
     /** Automatic with no name is the default, so it isn't stored; a name survives cycling past Other. */
     fun setConsoleTile(inputId: String, tile: PortTile) = edit {
         val clean = tile.copy(name = cleanTileName(tile.name))

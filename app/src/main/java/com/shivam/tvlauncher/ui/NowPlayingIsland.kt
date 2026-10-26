@@ -82,6 +82,9 @@ fun rememberNowPlaying(): NowPlaying? {
 
 private val ExpandedWidth = 330.dp
 
+/** The open panel's buttons: rounded squares like the top bar's, a size down. */
+private val ControlShape = RoundedCornerShape(10.dp)
+
 /**
  * Now playing as a "dynamic island": a slim pill the height of the top bar's buttons (artwork,
  * title, a moving equaliser while playing). OK springs it open into a glass panel tinted from the
@@ -120,7 +123,7 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
     }
     val corner by animateDpAsState(
         // Closed it matches the top bar's buttons (TopBarButtonShape); open, a panel's corners.
-        if (expanded) 22.dp else 12.dp,
+        if (expanded) 14.dp else 12.dp,
         if (animate) spring(dampingRatio = 0.72f, stiffness = 380f) else snap(),
         label = "corner",
     )
@@ -317,8 +320,9 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
             // on opening only if the app has no play/pause.
             RoundIconButton(
                 onOpen,
-                Modifier.size(36.dp).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
-            ) { OpenIcon(it, size = 15.dp) }
+                Modifier.size(34.dp).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
+                ControlShape,
+            ) { OpenIcon(it, size = 14.dp) }
         }
         Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.14f)))
         if (now.durationMs > 0) {
@@ -326,21 +330,21 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
         }
         Spacer(Modifier.height(10.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (now.canSkipPrevious) {
-                RoundIconButton(now::skipPrevious, Modifier.size(42.dp)) { SkipIcon(it, previous = true, size = 15.dp) }
+                RoundIconButton(now::skipPrevious, Modifier.size(34.dp), ControlShape) { SkipIcon(it, previous = true, size = 13.dp) }
             }
             // The middle control takes focus on opening.
             if (now.canPlayPause) {
-                RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(50.dp)) {
-                    if (now.playing) PauseIcon(it, size = 17.dp) else PlayIcon(it, size = 17.dp, modifier = Modifier.padding(start = 2.dp))
+                RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(42.dp), ControlShape) {
+                    if (now.playing) PauseIcon(it, size = 15.dp) else PlayIcon(it, size = 15.dp, modifier = Modifier.padding(start = 2.dp))
                 }
             }
             if (now.canSkipNext) {
-                RoundIconButton(now::skipNext, Modifier.size(42.dp)) { SkipIcon(it, previous = false, size = 15.dp) }
+                RoundIconButton(now::skipNext, Modifier.size(34.dp), ControlShape) { SkipIcon(it, previous = false, size = 13.dp) }
             }
         }
     }

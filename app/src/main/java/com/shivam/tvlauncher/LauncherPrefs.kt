@@ -32,6 +32,8 @@ data class LauncherPrefs(
     val homeRedirect: Boolean = true,
     /** Console tile per HDMI port, by TV input id; ports not listed are Automatic. */
     val consoleTiles: Map<String, PortTile> = emptyMap(),
+    /** [Wallpaper] name; unknown names are Dynamic. */
+    val wallpaper: String = "",
 )
 
 private val Context.launcherDataStore: DataStore<Preferences> by preferencesDataStore(name = "launcher")
@@ -57,6 +59,7 @@ class LauncherPrefsStore(context: Context) {
             stored[ConsoleTiles] = next.consoleTiles.entries.joinToString(Separator) { (input, tile) ->
                 "$input$Field${tile.mode.name}$Field${tile.name}"
             }
+            stored[WallpaperKey] = next.wallpaper
             // Left by a removed "Recent" feature; drop it so no launch history stays on disk.
             stored.remove(RemovedRecent)
         }
@@ -74,6 +77,7 @@ class LauncherPrefsStore(context: Context) {
         animations = this[Animations] ?: true,
         homeRedirect = this[HomeRedirect] ?: true,
         consoleTiles = this[ConsoleTiles].toConsoleTiles(),
+        wallpaper = this[WallpaperKey].orEmpty(),
     )
 
     private fun String?.toPackageList(): List<String> =
@@ -102,6 +106,7 @@ class LauncherPrefsStore(context: Context) {
         val Animations = booleanPreferencesKey("animations")
         val HomeRedirect = booleanPreferencesKey("home_redirect")
         val ConsoleTiles = stringPreferencesKey("console_tiles")
+        val WallpaperKey = stringPreferencesKey("wallpaper")
         val RemovedRecent = stringPreferencesKey("recent")
     }
 }

@@ -75,6 +75,8 @@ import com.shivam.tvlauncher.LauncherUi
 import com.shivam.tvlauncher.RemoteShortcut
 import com.shivam.tvlauncher.RowKind
 import com.shivam.tvlauncher.SystemShortcut
+import com.shivam.tvlauncher.Wallpaper
+import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -101,6 +103,9 @@ interface LauncherActions {
     fun setAnimations(enabled: Boolean)
     fun setHomeRedirect(enabled: Boolean)
     fun setConsoleTile(inputId: String, tile: PortTile)
+    fun setWallpaper(wallpaper: Wallpaper)
+    /** Opens the system picker; the chosen image becomes the Photo background. */
+    fun choosePhoto()
     /** Re-reads whether the shortcut service is on; the panels call it as they open. */
     fun recheckShortcut()
     fun exportBackup()
@@ -153,6 +158,11 @@ fun HomeScreen(
     homeRedirect: Boolean,
     ports: List<HdmiPort>,
     consoleTiles: Map<String, PortTile>,
+    wallpaper: Wallpaper,
+    /** The chosen photo, decoded; null when there is none (or it isn't the background). */
+    photo: ImageBitmap?,
+    /** Whether a photo has been chosen, even if it isn't the background now. */
+    hasPhoto: Boolean,
     homePresses: Int,
     opens: Int,
     backup: BackupState?,
@@ -248,8 +258,13 @@ fun HomeScreen(
             true
         },
     ) {
-        Backdrop(backdrop, Modifier.fillMaxSize())
-        BackdropDriver(hero, backdrop)
+        // A Photo background with no photo yet falls back to the app-tinted one.
+        if (wallpaper == Wallpaper.Dynamic || (wallpaper == Wallpaper.Photo && photo == null)) {
+            Backdrop(backdrop, Modifier.fillMaxSize())
+            BackdropDriver(hero, backdrop)
+        } else {
+            WallpaperBackdrop(wallpaper, photo, Modifier.fillMaxSize())
+        }
 
         Column(Modifier.fillMaxSize()) {
             // The top row (clock, Now playing, buttons) floats over this. Spare height goes mostly
@@ -366,7 +381,7 @@ fun HomeScreen(
                 onOpen = { openPanel(it.panel()) },
                 onDismiss = closePanel,
             )
-            SettingsPanel.Theme -> ThemeMenu(LocalAccentTheme.current, animate, actions, onDismiss = closePanel)
+            SettingsPanel.Theme -> ThemeMenu(LocalAccentTheme.current, animate, wallpaper, hasPhoto, actions, onDismiss = closePanel)
             SettingsPanel.Shortcuts -> ShortcutsMenu(homeRedirect, remoteShortcut, actions, onDismiss = closePanel)
             SettingsPanel.ConsoleTiles -> {
                 ConsoleTilesMenu(
