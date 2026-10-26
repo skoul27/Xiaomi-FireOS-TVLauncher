@@ -17,6 +17,7 @@ import androidx.tv.material3.darkColorScheme
 import com.shivam.tvlauncher.R
 
 val Inter = FontFamily(
+    Font(R.font.inter_light, FontWeight.Light),
     Font(R.font.inter_regular, FontWeight.Normal),
     Font(R.font.inter_medium, FontWeight.Medium),
     Font(R.font.inter_semibold, FontWeight.SemiBold),
@@ -93,8 +94,10 @@ val PillShape = RoundedCornerShape(percent = 50)
 object LauncherText {
     val Hero = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 54.sp, lineHeight = 62.sp, letterSpacing = (-0.9).sp)
     val Display = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.6).sp)
-    /** The home screen's clock: reads from the sofa without dominating the screen. */
-    val Clock = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 60.sp, lineHeight = 64.sp, letterSpacing = (-1.4).sp)
+    /** The home screen's clock, top-left beside the date: light, one top bar high. */
+    val Clock = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 44.sp, lineHeight = 52.sp, letterSpacing = (-0.8).sp)
+    /** The date and weather lines beside the clock. */
+    val ClockDetail = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 16.sp, lineHeight = 21.sp)
     val Section = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 22.sp, letterSpacing = 0.2.sp)
     val Title = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp)
     val Button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp)

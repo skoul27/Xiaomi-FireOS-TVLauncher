@@ -235,24 +235,8 @@ fun HomeScreen(
         BackdropDriver(hero, backdrop)
 
         Column(Modifier.fillMaxSize()) {
-            Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 32.dp),
-            ) {
-                Hero(Modifier.align(Alignment.BottomStart))
-                shownPlaying?.let {
-                    NowPlayingCard(
-                        it,
-                        nowPlayingFocus,
-                        Modifier
-                            .align(Alignment.BottomEnd)
-                            .onFocusChanged { state -> nowPlayingFocused = state.hasFocus }
-                            .onDpad(Key.DirectionDown, enterMyApps),
-                    )
-                }
-            }
+            // The top row (clock, Now playing, buttons) floats over this; the backdrop shows through.
+            Spacer(Modifier.weight(1f))
 
             SectionHeader("My Apps")
             Spacer(Modifier.height(HeaderGap))
@@ -284,12 +268,30 @@ fun HomeScreen(
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
+        val topRow = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)
+        Hero(topRow.align(Alignment.TopStart))
+        shownPlaying?.let {
+            NowPlayingCard(
+                it,
+                nowPlayingFocus,
+                Modifier
+                    // Centred on the top bar's row, level with its buttons.
+                    .padding(top = SafeArea.Vertical + (TopBarHeight - RoundButtonSize) / 2)
+                    .align(Alignment.TopCenter)
+                    .onFocusChanged { state -> nowPlayingFocused = state.hasFocus }
+                    .onDpad(Key.DirectionDown, enterMyApps),
+            )
+        }
+
         TopBar(
             buttons = {
-                // Ends of the bar: nothing beyond them, rather than a diagonal jump to a tile.
+                // Ends of the bar: nothing beyond them, rather than a diagonal jump to a tile. With
+                // Now playing showing, Left from All apps goes to its play/pause button.
                 RoundIconButton(
                     { if (ui != null) popup = AppsPopup.All },
-                    Modifier.focusRequester(allAppsButton).focusProperties { left = FocusRequester.Cancel },
+                    Modifier.focusRequester(allAppsButton).focusProperties {
+                        if (shownPlaying == null) left = FocusRequester.Cancel
+                    },
                 ) {
                     GridIcon(it, size = 18.dp)
                 }
@@ -297,11 +299,7 @@ fun HomeScreen(
                 NetworkButton(actions::openWifiSettings)
                 RoundIconButton({ showSystem = true }, Modifier.focusProperties { right = FocusRequester.Cancel }) { GearIcon(it) }
             },
-            modifier = Modifier
-                .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)
-                .onDpad(Key.DirectionDown) {
-                    if (shownPlaying != null) runCatching { nowPlayingFocus.requestFocus() }.isSuccess else enterMyApps()
-                },
+            modifier = topRow.onDpad(Key.DirectionDown, enterMyApps),
         )
 
         if (ui != null) {

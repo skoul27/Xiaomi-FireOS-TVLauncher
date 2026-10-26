@@ -2,7 +2,15 @@ package com.shivam.tvlauncher.ui
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -11,9 +19,10 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.AppArtCache
 import com.shivam.tvlauncher.LaunchableApp
@@ -30,9 +39,9 @@ class HeroState {
 }
 
 /**
- * The time over the date and (once it loads) the weather. The focused app only
- * tints the backdrop behind it; its name is already under its tile. Only this recomposes when the
- * minute ticks.
+ * The time, top-left and one top bar high, with the date and (once it loads) the weather stacked
+ * beside it after a hairline. The focused app only tints the backdrop; its name is already under
+ * its tile. Only this recomposes when the minute ticks.
  */
 @Composable
 fun Hero(modifier: Modifier = Modifier) {
@@ -52,19 +61,25 @@ fun Hero(modifier: Modifier = Modifier) {
     val date = Date(now)
     val weather = rememberWeather()
 
-    Column(verticalArrangement = Arrangement.Bottom, modifier = modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier.height(TopBarHeight)) {
         Text(timeFormat.format(date), style = LauncherText.Clock, color = LauncherColors.TextPrimary)
-        Text(
-            text = buildString {
-                append(dateFormat.format(date))
-                if (weather != null) {
-                    append("   ·   ${weather.temperature}°")
-                    if (weather.summary.isNotEmpty()) append(" ${weather.summary}")
+        Spacer(Modifier.width(18.dp))
+        Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 8.dp).background(LauncherColors.TextTertiary))
+        Spacer(Modifier.width(18.dp))
+        Column(verticalArrangement = Arrangement.Center) {
+            Text(dateFormat.format(date), style = LauncherText.ClockDetail, color = LauncherColors.TextPrimary)
+            if (weather != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WeatherIcon(weather.kind, weather.isDay, LauncherColors.TextSecondary, size = 18.dp)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "${weather.temperature}°" + if (weather.summary.isNotEmpty()) "  ${weather.summary}" else "",
+                        style = LauncherText.ClockDetail,
+                        color = LauncherColors.TextSecondary,
+                    )
                 }
-            },
-            style = LauncherText.Body.copy(fontSize = 18.sp, lineHeight = 24.sp),
-            color = LauncherColors.TextSecondary,
-        )
+            }
+        }
     }
 }
 

@@ -5,31 +5,31 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.NowPlaying
@@ -43,73 +43,65 @@ fun rememberNowPlaying(): NowPlaying? {
     return flow.collectAsStateWithLifecycle(null).value
 }
 
-private val CardShape = RoundedCornerShape(Radii.Item + 4.dp)
-private val ArtShape = RoundedCornerShape(10.dp)
-
 /**
- * Artwork, title and app, with play/pause beside it. OK on the card goes back into the app;
- * [bodyFocus] is the card itself, for the top bar to move down to.
+ * A slim pill the height of the top bar's buttons: round artwork, the title, and the app and
+ * artist under it, with play/pause beside it. It focuses like the round buttons (solid white).
+ * OK on the pill goes back into the app; [bodyFocus] is the pill itself.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun NowPlayingCard(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val accent = LocalAccent.current
-    val motion = remember { FocusMotion() }
-    val scope = rememberCoroutineScope()
-    val animate = LocalAnimationsEnabled.current
-    var focused by remember { mutableStateOf(false) }
     val art = remember(now.art) { now.art?.asImageBitmap() }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = modifier,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        GlassButton(
+            onClick = { now.open(context) },
+            contentPadding = PaddingValues(start = 6.dp, end = 20.dp),
             modifier = Modifier
-                .width(340.dp)
-                .height(80.dp)
+                .height(RoundButtonSize)
+                .widthIn(max = 340.dp)
                 .focusRequester(bodyFocus)
-                .onFocusChanged {
-                    focused = it.isFocused
-                    motion.onFocusChanged(it.isFocused, animate, scope)
-                }
-                .remoteClickable({ now.open(context) })
-                .graphicsLayer {
-                    val s = 1f + 0.05f * motion.focus.value
-                    scaleX = s
-                    scaleY = s
-                }
-                .glass(
-                    CardShape,
-                    fill = if (focused) Glass.FillFocused else Glass.Fill,
-                    border = if (focused) Glass.BorderFocused else Glass.Border,
-                )
-                .padding(10.dp),
-        ) {
+                .focusProperties { left = FocusRequester.Cancel },
+        ) { focused ->
+            val color = buttonContentColor(focused)
             if (art != null) {
-                Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(60.dp).clip(ArtShape))
+                Image(art, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(36.dp).clip(CircleShape))
             } else {
-                Box(Modifier.size(60.dp).background(Glass.TileBase, ArtShape))
+                Box(Modifier.size(36.dp).background(Glass.TileBase, CircleShape))
             }
-            Spacer(Modifier.width(14.dp))
-            Column(verticalArrangement = Arrangement.Center) {
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f, fill = false)) {
                 Text(
-                    text = (if (now.playing) "Now playing · " else "Paused · ") + now.appName,
-                    style = LauncherText.Caption,
-                    color = if (now.playing) accent else LauncherColors.TextTertiary,
+                    now.title,
+                    style = LauncherText.Label.copy(fontSize = 14.sp, lineHeight = 17.sp),
+                    color = color,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(now.title, style = LauncherText.Button, color = LauncherColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                now.subtitle?.let {
-                    Text(it, style = LauncherText.Caption, color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Accent dot while playing, so "playing" reads at a glance without a label.
+                    if (now.playing) {
+                        Box(Modifier.size(6.dp).background(if (focused) color else accent, CircleShape))
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        listOfNotNull(now.appName, now.subtitle).joinToString(" · "),
+                        style = LauncherText.Caption.copy(fontSize = 12.sp, lineHeight = 15.sp, fontWeight = FontWeight.Normal),
+                        color = color.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
         RoundIconButton({ now.playPause() }) { color ->
-            if (now.playing) PauseIcon(color, size = 18.dp) else PlayIcon(color, size = 18.dp, modifier = Modifier.padding(start = 2.dp))
+            if (now.playing) PauseIcon(color, size = 16.dp) else PlayIcon(color, size = 16.dp, modifier = Modifier.padding(start = 2.dp))
         }
     }
 }

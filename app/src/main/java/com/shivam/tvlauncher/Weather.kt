@@ -50,8 +50,11 @@ private object IpPlace {
     }
 }
 
+/** What the weather icon draws. */
+enum class WeatherKind { Clear, PartlyCloudy, Cloudy, Fog, Rain, Snow, Thunder }
+
 @Immutable
-class Weather(val temperature: Int, val summary: String)
+class Weather(val temperature: Int, val summary: String, val kind: WeatherKind, val isDay: Boolean)
 
 /**
  * The current weather from Open-Meteo (free, no account), refreshed every 30 minutes; null until
@@ -83,13 +86,26 @@ private fun httpGet(url: URL): String {
 private fun fetchWeather(place: WeatherPlace): Weather {
     val url = URL(
         "https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}" +
-            "&current=temperature_2m,weather_code",
+            "&current=temperature_2m,weather_code,is_day",
     )
     val current = JSONObject(httpGet(url)).getJSONObject("current")
+    val code = current.getInt("weather_code")
     return Weather(
         temperature = current.getDouble("temperature_2m").roundToInt(),
-        summary = describe(current.getInt("weather_code")),
+        summary = describe(code),
+        kind = kindOf(code),
+        isDay = current.optInt("is_day", 1) == 1,
     )
+}
+
+private fun kindOf(code: Int): WeatherKind = when (code) {
+    0, 1 -> WeatherKind.Clear
+    2 -> WeatherKind.PartlyCloudy
+    45, 48 -> WeatherKind.Fog
+    in 51..67, in 80..82 -> WeatherKind.Rain
+    in 71..77, 85, 86 -> WeatherKind.Snow
+    in 95..99 -> WeatherKind.Thunder
+    else -> WeatherKind.Cloudy
 }
 
 /** WMO weather codes, as Open-Meteo reports them, in a few words. */
