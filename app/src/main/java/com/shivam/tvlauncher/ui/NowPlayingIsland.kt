@@ -79,7 +79,7 @@ fun rememberNowPlaying(): NowPlaying? {
     return flow.collectAsStateWithLifecycle(null).value
 }
 
-private val ExpandedWidth = 380.dp
+private val ExpandedWidth = 330.dp
 
 /**
  * Now playing as a "dynamic island": a slim pill the height of the top bar's buttons (artwork,
@@ -128,7 +128,7 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
     }
 
     val corner by animateDpAsState(
-        if (expanded) 24.dp else RoundButtonSize / 2,
+        if (expanded) 22.dp else RoundButtonSize / 2,
         if (animate) spring(dampingRatio = 0.72f, stiffness = 380f) else snap(),
         label = "corner",
     )
@@ -227,7 +227,7 @@ private fun Pill(now: NowPlaying, art: ImageBitmap?, lit: Boolean, tint: Color, 
         modifier = modifier
             .height(RoundButtonSize)
             // Narrow enough to clear the date on the left whatever the title.
-            .widthIn(max = 280.dp)
+            .widthIn(max = 236.dp)
             .padding(start = 6.dp, end = 18.dp),
     ) {
         Artwork(art, 36.dp, CircleShape)
@@ -287,10 +287,10 @@ private fun Equalizer(playing: Boolean, color: Color) {
 
 @Composable
 private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainControl: FocusRequester, onOpen: () -> Unit) {
-    Column(Modifier.width(ExpandedWidth).padding(16.dp)) {
+    Column(Modifier.width(ExpandedWidth).padding(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(art, 60.dp, RoundedCornerShape(14.dp))
-            Spacer(Modifier.width(14.dp))
+            Artwork(art, 52.dp, RoundedCornerShape(12.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     now.appName.uppercase() + if (now.playing) "  ·  PLAYING" else "  ·  PAUSED",
@@ -301,13 +301,13 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
                 Spacer(Modifier.height(2.dp))
                 Text(
                     now.title,
-                    style = LauncherText.Title.copy(fontSize = 17.sp, lineHeight = 22.sp),
+                    style = LauncherText.Title.copy(fontSize = 16.sp, lineHeight = 20.sp),
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 now.subtitle?.let {
-                    Text(it, style = LauncherText.Body.copy(fontSize = 14.sp, lineHeight = 18.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(it, style = LauncherText.Body.copy(fontSize = 13.sp, lineHeight = 17.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -316,11 +316,11 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
             Progress(now, tint)
         }
         Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth()) {
+        // Playback controls on the left, Open on its own at the right.
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.align(Alignment.Center),
             ) {
                 if (now.canSkipPrevious) {
                     RoundIconButton(now::skipPrevious, Modifier.size(42.dp)) { SkipIcon(it, previous = true, size = 15.dp) }
@@ -335,11 +335,11 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
                     RoundIconButton(now::skipNext, Modifier.size(42.dp)) { SkipIcon(it, previous = false, size = 15.dp) }
                 }
             }
+            Spacer(Modifier.weight(1f))
             GlassButton(
                 onClick = onOpen,
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
                     .height(36.dp)
                     .then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
             ) { focused ->
