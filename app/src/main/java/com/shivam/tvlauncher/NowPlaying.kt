@@ -10,6 +10,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import androidx.compose.runtime.Immutable
 import androidx.core.graphics.drawable.toBitmap
@@ -35,11 +36,33 @@ class NowPlaying(
     /** The artwork the app gives its session, or its icon when it gives none. */
     val art: Bitmap?,
     val playing: Boolean,
+    /** Which controls the app says it supports; only those are offered. */
+    val canPlayPause: Boolean,
+    val canSkipPrevious: Boolean,
+    val canSkipNext: Boolean,
+    /** Track length; 0 when the app doesn't say (live streams, some video apps). */
+    val durationMs: Long,
+    private val positionMs: Long,
+    /** SystemClock.elapsedRealtime() when [positionMs] was reported. */
+    private val positionAt: Long,
+    private val speed: Float,
     private val controller: MediaController,
 ) {
+    /** Where playback is now, moved on from the last report while playing. */
+    fun position(): Long {
+        if (positionMs < 0) return 0
+        val moved = if (playing) ((SystemClock.elapsedRealtime() - positionAt) * speed).toLong() else 0
+        val now = positionMs + moved
+        return if (durationMs > 0) now.coerceIn(0, durationMs) else now
+    }
+
     fun playPause() {
         if (playing) controller.transportControls.pause() else controller.transportControls.play()
     }
+
+    fun skipNext() = controller.transportControls.skipToNext()
+
+    fun skipPrevious() = controller.transportControls.skipToPrevious()
 
     /** Back into the app, at what's playing when the app says where that is. */
     fun open(context: Context) {
@@ -107,6 +130,9 @@ private fun pick(context: Context, controllers: List<MediaController>): NowPlayi
             ?: it.getString(MediaMetadata.METADATA_KEY_ARTIST)
             ?: it.getString(MediaMetadata.METADATA_KEY_ALBUM)
     }?.takeIf { it.isNotBlank() }
+    val state = controller.playbackState
+    val actions = state?.actions ?: 0L
+    fun supports(action: Long) = actions and action != 0L
     return NowPlaying(
         packageName = controller.packageName,
         appName = app?.let { pm.getApplicationLabel(it).toString() } ?: controller.packageName,
@@ -114,6 +140,14 @@ private fun pick(context: Context, controllers: List<MediaController>): NowPlayi
         subtitle = subtitle,
         art = art,
         playing = controller.state() == true,
+        canPlayPause = supports(PlaybackState.ACTION_PLAY_PAUSE) ||
+            supports(if (controller.state() == true) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY),
+        canSkipPrevious = supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS),
+        canSkipNext = supports(PlaybackState.ACTION_SKIP_TO_NEXT),
+        durationMs = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION)?.coerceAtLeast(0) ?: 0,
+        positionMs = state?.position ?: -1,
+        positionAt = state?.lastPositionUpdateTime ?: 0,
+        speed = state?.playbackSpeed ?: 1f,
         controller = controller,
     )
 }

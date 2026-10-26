@@ -112,6 +112,8 @@ private val EdgeFade = 40.dp
 private val SectionHeaderHeight = 22.dp
 private val HeaderGap = 12.dp
 private val SectionGap = 28.dp
+/** From the top row (clock, Now playing, buttons) down to the My Apps header. */
+private val TopRowGap = 40.dp
 
 /** Label line under a tile: 10dp gap plus one line of [LauncherText.Label]. */
 private val LabelHeight = 30.dp
@@ -131,9 +133,9 @@ private fun LauncherSection.panel(): SettingsPanel = when (this) {
 }
 
 /**
- * One screen, no page scroll: the hero fills whatever the My Apps and Consoles sections below it
- * leave; the top bar floats top-right over the hero's empty corner. Both sections use one tile
- * size and one header style, so their columns line up.
+ * One screen, no page scroll: a top row (clock left, Now playing centre, buttons right), then
+ * My Apps and Consoles straight under it, with any spare height left at the bottom. Both
+ * sections use one tile size and one header style, so their columns line up.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -235,8 +237,8 @@ fun HomeScreen(
         BackdropDriver(hero, backdrop)
 
         Column(Modifier.fillMaxSize()) {
-            // The top row (clock, Now playing, buttons) floats over this; the backdrop shows through.
-            Spacer(Modifier.weight(1f))
+            // The top row (clock, Now playing, buttons) floats over this.
+            Spacer(Modifier.height(SafeArea.Vertical + TopBarHeight + TopRowGap))
 
             SectionHeader("My Apps")
             Spacer(Modifier.height(HeaderGap))
@@ -253,7 +255,7 @@ fun HomeScreen(
                 }
             }
 
-            // Nothing to show (every console off and Automatic): no section, and the hero takes the room.
+            // Nothing to show (every console off and Automatic): no section.
             if (consoles.isNotEmpty()) {
                 Spacer(Modifier.height(SectionGap))
                 SectionHeader("Consoles")
@@ -265,28 +267,17 @@ fun HomeScreen(
                     modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps),
                 )
             }
-            Spacer(Modifier.height(SafeArea.Vertical))
+            // Whatever height is left over sits below the sections, with the backdrop showing.
+            Spacer(Modifier.weight(1f))
         }
 
         val topRow = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)
         Hero(topRow.align(Alignment.TopStart))
-        shownPlaying?.let {
-            NowPlayingCard(
-                it,
-                nowPlayingFocus,
-                Modifier
-                    // Centred on the top bar's row, level with its buttons.
-                    .padding(top = SafeArea.Vertical + (TopBarHeight - RoundButtonSize) / 2)
-                    .align(Alignment.TopCenter)
-                    .onFocusChanged { state -> nowPlayingFocused = state.hasFocus }
-                    .onDpad(Key.DirectionDown, enterMyApps),
-            )
-        }
 
         TopBar(
             buttons = {
                 // Ends of the bar: nothing beyond them, rather than a diagonal jump to a tile. With
-                // Now playing showing, Left from All apps goes to its play/pause button.
+                // Now playing showing, Left from All apps goes to it.
                 RoundIconButton(
                     { if (ui != null) popup = AppsPopup.All },
                     Modifier.focusRequester(allAppsButton).focusProperties {
@@ -301,6 +292,20 @@ fun HomeScreen(
             },
             modifier = topRow.onDpad(Key.DirectionDown, enterMyApps),
         )
+
+        // After the top bar, so the opened island draws over whatever it grows across.
+        shownPlaying?.let {
+            NowPlayingIsland(
+                it,
+                nowPlayingFocus,
+                Modifier
+                    // Centred on the top bar's row, level with its buttons.
+                    .padding(top = SafeArea.Vertical + (TopBarHeight - RoundButtonSize) / 2)
+                    .align(Alignment.TopCenter)
+                    .onFocusChanged { state -> nowPlayingFocused = state.hasFocus }
+                    .onDpad(Key.DirectionDown, enterMyApps),
+            )
+        }
 
         if (ui != null) {
             menu?.let { target ->

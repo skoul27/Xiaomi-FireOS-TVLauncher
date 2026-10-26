@@ -134,6 +134,25 @@ fun PauseIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
     }
 }
 
+/** A triangle into a bar: next track. [previous] mirrors it. */
+@Composable
+fun SkipIcon(color: Color, previous: Boolean, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        scale(if (previous) -1f else 1f, 1f) {
+            val path = Path().apply {
+                moveTo(w * 0.16f, w * 0.16f)
+                lineTo(w * 0.68f, w * 0.5f)
+                lineTo(w * 0.16f, w * 0.84f)
+                close()
+            }
+            drawPath(path, color)
+            drawPath(path, color, style = Stroke(width = w * 0.08f, join = StrokeJoin.Round))
+            drawRoundRect(color, topLeft = Offset(w * 0.7f, w * 0.16f), size = Size(w * 0.14f, w * 0.68f), cornerRadius = CornerRadius(w * 0.05f))
+        }
+    }
+}
+
 /** A 3×3 grid of rounded squares: all apps. */
 @Composable
 fun GridIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
