@@ -10,8 +10,17 @@ Amazon's launcher back.
 
 ## Two development PCs
 
-This project is developed on two Windows PCs and synced through GitHub.
-Pull before starting work, push when done.
+This project is developed on two Windows PCs and synced through GitHub
+(`skoul27/Xiaomi-FireOS-TVLauncher`, private). Each PC has its own clone at
+`C:\code\tv-launcher`; GitHub is the source of truth, not either PC's folder.
+
+- **Start of every session:** `git pull` before touching anything. If the working
+  tree has uncommitted changes, stop and ask the owner before pulling.
+- **End of every session (or when the owner says "commit and push"):** commit with
+  the repo-local identity (skoul27, noreply address) and `git push`, so the other PC
+  can pick up from here.
+- If a pull hits a conflict, resolve it keeping both PCs' intent and say what was
+  merged; never discard the other side's work.
 
 **Both PCs must sign with the same debug keystore.** The app on the TV is signed
 with the key whose certificate SHA-256 is
