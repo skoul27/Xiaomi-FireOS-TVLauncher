@@ -303,12 +303,15 @@ fun HomeScreen(
                     Modifier.focusRequester(allAppsButton).focusProperties {
                         if (shownPlaying == null) left = FocusRequester.Cancel
                     },
+                    TopBarButtonShape,
                 ) {
-                    GridIcon(it, size = 18.dp)
+                    GridIcon(it, size = 16.dp)
                 }
-                RoundIconButton(actions::openCast) { CastIcon(it, size = 21.dp) }
+                RoundIconButton(actions::openCast, shape = TopBarButtonShape) { CastIcon(it, size = 19.dp) }
                 NetworkButton(actions::openWifiSettings)
-                RoundIconButton({ showSystem = true }, Modifier.focusProperties { right = FocusRequester.Cancel }) { GearIcon(it) }
+                RoundIconButton({ showSystem = true }, Modifier.focusProperties { right = FocusRequester.Cancel }, TopBarButtonShape) {
+                    GearIcon(it, size = 19.dp)
+                }
             },
             modifier = topRow.onDpad(Key.DirectionDown, enterMyApps),
         )

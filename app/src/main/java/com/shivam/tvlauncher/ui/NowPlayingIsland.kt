@@ -18,6 +18,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,7 +86,7 @@ private val ExpandedWidth = 330.dp
  * Now playing as a "dynamic island": a slim pill the height of the top bar's buttons (artwork,
  * title, a moving equaliser while playing). OK springs it open into a glass panel tinted from the
  * artwork, with progress and whichever of previous / play-pause / next the app supports, plus
- * Open. Back, or moving focus out of it, folds it up again. [bodyFocus] is the pill.
+ * Open. While open, focus stays inside it; only Back (or Open) folds it up. [bodyFocus] is the pill.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -98,7 +99,7 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
     val art = remember(now.art) { now.art?.asImageBitmap() }
     val tint = remember(now.art) { now.art?.let(::artTint) ?: Color(0xFF8A93A6) }
 
-    // Back (or Open) folds it with focus returning to the pill; moving out of it folds it silently.
+    // Back (or Open) folds it, with focus returning to the pill.
     var refocusPill by remember { mutableStateOf(false) }
     val expand = { expanded = true }
     val collapse = {
@@ -117,18 +118,9 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
             refocusPill = false
         }
     }
-    // Compose drops focus for an instant whenever it moves (button to button, or pill to panel as
-    // one replaces the other), so only fold when it's still gone a moment later.
-    var hasFocus by remember { mutableStateOf(false) }
-    LaunchedEffect(hasFocus, expanded) {
-        if (!hasFocus && expanded) {
-            delay(120)
-            expanded = false
-        }
-    }
-
     val corner by animateDpAsState(
-        if (expanded) 22.dp else RoundButtonSize / 2,
+        // Closed it matches the top bar's buttons (TopBarButtonShape); open, a panel's corners.
+        if (expanded) 22.dp else 12.dp,
         if (animate) spring(dampingRatio = 0.72f, stiffness = 380f) else snap(),
         label = "corner",
     )
@@ -137,7 +129,6 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
 
     Box(
         modifier
-            .onFocusChanged { hasFocus = it.hasFocus }
             .shadow(if (expanded) 28.dp else 0.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
             .animateContentSize(if (animate) spring(dampingRatio = 0.68f, stiffness = 360f) else snap())
             .liquidGlass(shape, tint, lit = pillLit, solid = expanded),
@@ -163,7 +154,10 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
                         .remoteClickable(expand),
                 )
             } else {
-                Expanded(now, art, tint, mainControl, onOpen = { collapse(); now.open(context) })
+                // A focus group nothing can leave: the D-pad stops at its edges, so only Back closes it.
+                Box(Modifier.focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()) {
+                    Expanded(now, art, tint, mainControl, onOpen = { collapse(); now.open(context) })
+                }
             }
         }
     }
@@ -228,10 +222,10 @@ private fun Pill(now: NowPlaying, art: ImageBitmap?, lit: Boolean, tint: Color, 
             .height(RoundButtonSize)
             // Narrow enough to clear the date on the left whatever the title.
             .widthIn(max = 236.dp)
-            .padding(start = 6.dp, end = 18.dp),
+            .padding(start = 5.dp, end = 14.dp),
     ) {
         // A rounded-square tile, like the panel headers' icons.
-        Artwork(art, 36.dp, RoundedCornerShape(10.dp))
+        Artwork(art, 32.dp, RoundedCornerShape(8.dp))
         Spacer(Modifier.width(12.dp))
         Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f, fill = false)) {
             Text(

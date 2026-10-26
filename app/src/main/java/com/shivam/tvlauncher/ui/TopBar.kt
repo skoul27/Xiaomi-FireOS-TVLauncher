@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -37,12 +39,15 @@ fun TopBar(buttons: @Composable () -> Unit, modifier: Modifier = Modifier) {
 
 val TopBarHeight = 52.dp
 
-/** A round glass button holding one centred icon, drawn in the colour it's given. */
+/**
+ * A glass button holding one centred icon, drawn in the colour it's given. Round by default (the
+ * Now playing controls); the top bar passes [TopBarButtonShape].
+ */
 @Composable
-fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, icon: @Composable (Color) -> Unit) {
+fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, shape: Shape = CircleShape, icon: @Composable (Color) -> Unit) {
     GlassButton(
         onClick = onClick,
-        shape = CircleShape,
+        shape = shape,
         contentPadding = PaddingValues(0.dp),
         modifier = modifier.size(RoundButtonSize),
     ) { focused ->
@@ -52,7 +57,10 @@ fun RoundIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, icon: @C
     }
 }
 
-val RoundButtonSize = 48.dp
+val RoundButtonSize = 42.dp
+
+/** The top bar's buttons and the Now playing pill: rounded squares, like the panels' icon tiles. */
+val TopBarButtonShape = RoundedCornerShape(12.dp)
 
 /** Wi-Fi bars or Ethernet as the network reports it; faint with no internet, crossed out offline. */
 @Composable
@@ -60,12 +68,12 @@ fun NetworkButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current.applicationContext
     val flow = remember(context) { networkStatusFlow(context) }
     val status by flow.collectAsStateWithLifecycle(NetworkStatus(NetworkKind.None))
-    RoundIconButton(onClick, modifier) { color ->
+    RoundIconButton(onClick, modifier, TopBarButtonShape) { color ->
         val shown = if (status.kind != NetworkKind.None && !status.online) color.copy(alpha = 0.5f) else color
         when (status.kind) {
-            NetworkKind.Ethernet -> EthernetIcon(shown, size = 22.dp)
-            NetworkKind.None -> WifiIcon(shown, level = -1, size = 22.dp)
-            else -> WifiIcon(shown, level = status.level, size = 22.dp)
+            NetworkKind.Ethernet -> EthernetIcon(shown, size = 19.dp)
+            NetworkKind.None -> WifiIcon(shown, level = -1, size = 19.dp)
+            else -> WifiIcon(shown, level = status.level, size = 19.dp)
         }
     }
 }
