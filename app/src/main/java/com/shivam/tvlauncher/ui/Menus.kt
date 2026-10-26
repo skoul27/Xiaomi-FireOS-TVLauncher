@@ -9,6 +9,7 @@ import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +43,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -455,7 +457,7 @@ fun ImportConfirmMenu(summary: String, onConfirm: () -> Unit, onCancel: () -> Un
 /**
  * "Label        Value" on one row, with an optional colour swatch before the value. With
  * [onStep], left and right step the value back and forth (-1, +1) instead of leaving the row,
- * and arrows either side of the value say so.
+ * and triangles either side of the value say so while the row has focus.
  */
 @Composable
 private fun SettingItem(
@@ -486,9 +488,32 @@ private fun SettingItem(
             Box(Modifier.size(12.dp).clip(PillShape).background(swatch))
             Spacer(Modifier.width(8.dp))
         }
-        if (onStep != null) Text("‹", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(end = 12.dp))
+        // Filled triangles, unlike the › of rows that open a panel, and only while left/right
+        // work (focused). Hidden ones keep their room, so the value doesn't shift as focus moves.
+        val arrows = if (onStep != null && focused) valueColor else Color.Transparent
+        if (onStep != null) StepArrow(pointsLeft = true, arrows, Modifier.padding(end = 12.dp))
         Text(value, style = LauncherText.Body, color = valueColor)
-        if (onStep != null) Text("›", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(start = 12.dp))
+        if (onStep != null) StepArrow(pointsLeft = false, arrows, Modifier.padding(start = 12.dp))
+    }
+}
+
+/** A small solid triangle for a value that left/right change. */
+@Composable
+private fun StepArrow(pointsLeft: Boolean, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(width = 8.dp, height = 12.dp)) {
+        val path = Path().apply {
+            if (pointsLeft) {
+                moveTo(size.width, 0f)
+                lineTo(0f, size.height / 2f)
+                lineTo(size.width, size.height)
+            } else {
+                moveTo(0f, 0f)
+                lineTo(size.width, size.height / 2f)
+                lineTo(0f, size.height)
+            }
+            close()
+        }
+        drawPath(path, color)
     }
 }
 
