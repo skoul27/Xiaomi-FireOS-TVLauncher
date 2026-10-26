@@ -134,7 +134,7 @@ private fun LauncherSection.panel(): SettingsPanel = when (this) {
 
 /**
  * One screen, no page scroll: a top row (clock left, Now playing centre, buttons right), then
- * My Apps and Consoles straight under it, with any spare height left at the bottom. Both
+ * My Apps and Consoles in the lower part of the screen (spare height split 3:1 above and below). Both
  * sections use one tile size and one header style, so their columns line up.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
@@ -237,8 +237,10 @@ fun HomeScreen(
         BackdropDriver(hero, backdrop)
 
         Column(Modifier.fillMaxSize()) {
-            // The top row (clock, Now playing, buttons) floats over this.
+            // The top row (clock, Now playing, buttons) floats over this. Spare height goes mostly
+            // above the sections, so they sit in the lower part of the screen.
             Spacer(Modifier.height(SafeArea.Vertical + TopBarHeight + TopRowGap))
+            Spacer(Modifier.weight(3f))
 
             SectionHeader("My Apps")
             Spacer(Modifier.height(HeaderGap))
@@ -267,8 +269,8 @@ fun HomeScreen(
                     modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps),
                 )
             }
-            // Whatever height is left over sits below the sections, with the backdrop showing.
             Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(SafeArea.Vertical))
         }
 
         val topRow = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)

@@ -79,7 +79,7 @@ fun rememberNowPlaying(): NowPlaying? {
     return flow.collectAsStateWithLifecycle(null).value
 }
 
-private val ExpandedWidth = 440.dp
+private val ExpandedWidth = 380.dp
 
 /**
  * Now playing as a "dynamic island": a slim pill the height of the top bar's buttons (artwork,
@@ -128,7 +128,7 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
     }
 
     val corner by animateDpAsState(
-        if (expanded) 30.dp else RoundButtonSize / 2,
+        if (expanded) 24.dp else RoundButtonSize / 2,
         if (animate) spring(dampingRatio = 0.72f, stiffness = 380f) else snap(),
         label = "corner",
     )
@@ -287,63 +287,63 @@ private fun Equalizer(playing: Boolean, color: Color) {
 
 @Composable
 private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainControl: FocusRequester, onOpen: () -> Unit) {
-    Column(Modifier.width(ExpandedWidth).padding(20.dp)) {
+    Column(Modifier.width(ExpandedWidth).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(art, 76.dp, RoundedCornerShape(16.dp))
-            Spacer(Modifier.width(16.dp))
+            Artwork(art, 60.dp, RoundedCornerShape(14.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     now.appName.uppercase() + if (now.playing) "  ·  PLAYING" else "  ·  PAUSED",
-                    style = LauncherText.Caption.copy(fontSize = 12.sp, letterSpacing = 0.8.sp),
+                    style = LauncherText.Caption.copy(fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.8.sp),
                     color = tint.brighten(),
                     maxLines = 1,
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     now.title,
-                    style = LauncherText.Title.copy(fontSize = 20.sp, lineHeight = 25.sp),
+                    style = LauncherText.Title.copy(fontSize = 17.sp, lineHeight = 22.sp),
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 now.subtitle?.let {
-                    Text(it, style = LauncherText.Body.copy(fontSize = 15.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(it, style = LauncherText.Body.copy(fontSize = 14.sp, lineHeight = 18.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
         if (now.durationMs > 0) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             Progress(now, tint)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
         Box(Modifier.fillMaxWidth()) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.align(Alignment.Center),
             ) {
                 if (now.canSkipPrevious) {
-                    RoundIconButton(now::skipPrevious) { SkipIcon(it, previous = true, size = 18.dp) }
+                    RoundIconButton(now::skipPrevious, Modifier.size(42.dp)) { SkipIcon(it, previous = true, size = 15.dp) }
                 }
                 // The middle control takes focus on opening; Open does if the app has no play/pause.
                 if (now.canPlayPause) {
-                    RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(58.dp)) {
-                        if (now.playing) PauseIcon(it, size = 20.dp) else PlayIcon(it, size = 20.dp, modifier = Modifier.padding(start = 3.dp))
+                    RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(50.dp)) {
+                        if (now.playing) PauseIcon(it, size = 17.dp) else PlayIcon(it, size = 17.dp, modifier = Modifier.padding(start = 2.dp))
                     }
                 }
                 if (now.canSkipNext) {
-                    RoundIconButton(now::skipNext) { SkipIcon(it, previous = false, size = 18.dp) }
+                    RoundIconButton(now::skipNext, Modifier.size(42.dp)) { SkipIcon(it, previous = false, size = 15.dp) }
                 }
             }
             GlassButton(
                 onClick = onOpen,
-                contentPadding = PaddingValues(horizontal = 18.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .height(40.dp)
+                    .height(36.dp)
                     .then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
             ) { focused ->
-                Text("Open", style = LauncherText.Button.copy(fontSize = 15.sp), color = buttonContentColor(focused))
+                Text("Open", style = LauncherText.Button.copy(fontSize = 14.sp), color = buttonContentColor(focused))
             }
         }
     }
