@@ -16,11 +16,16 @@ import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 import com.shivam.tvlauncher.R
 
-val Inter = FontFamily(
-    Font(R.font.inter_light, FontWeight.Light),
-    Font(R.font.inter_regular, FontWeight.Normal),
-    Font(R.font.inter_medium, FontWeight.Medium),
-    Font(R.font.inter_semibold, FontWeight.SemiBold),
+/**
+ * Plus Jakarta Sans (SIL Open Font License), Latin subset from Fontsource: open, rounded
+ * shapes that stay clear from across a room. Glyphs it lacks fall back to the system font.
+ */
+val LauncherFont = FontFamily(
+    Font(R.font.jakarta_light, FontWeight.Light),
+    Font(R.font.jakarta_regular, FontWeight.Normal),
+    Font(R.font.jakarta_medium, FontWeight.Medium),
+    Font(R.font.jakarta_semibold, FontWeight.SemiBold),
+    Font(R.font.jakarta_bold, FontWeight.Bold),
 )
 
 object LauncherColors {
@@ -92,39 +97,40 @@ val PillShape = RoundedCornerShape(percent = 50)
 
 /** Sizes are for a 540dp-tall screen viewed from a sofa: nothing below 14sp. */
 object LauncherText {
-    val Hero = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 54.sp, lineHeight = 62.sp, letterSpacing = (-0.9).sp)
-    val Display = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.6).sp)
+    val Hero = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.SemiBold, fontSize = 54.sp, lineHeight = 62.sp, letterSpacing = (-0.9).sp)
+    val Display = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.SemiBold, fontSize = 42.sp, lineHeight = 50.sp, letterSpacing = (-0.6).sp)
     /** The home screen's clock, top-left beside the date: light, one top bar high. */
-    val Clock = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 44.sp, lineHeight = 52.sp, letterSpacing = (-0.8).sp)
+    val Clock = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Light, fontSize = 44.sp, lineHeight = 52.sp, letterSpacing = (-0.4).sp)
     /** The date and weather lines beside the clock. */
-    val ClockDetail = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Light, fontSize = 16.sp, lineHeight = 21.sp)
-    val Section = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 22.sp, letterSpacing = 0.2.sp)
-    val Title = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp)
-    val Button = TextStyle(fontFamily = Inter, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp)
-    val Body = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 22.sp)
-    val Label = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp)
+    val ClockDetail = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Light, fontSize = 16.sp, lineHeight = 21.sp, letterSpacing = 0.3.sp)
+    // Plus Jakarta Sans sets tight; text sizes get a little tracking so they read from a distance.
+    val Section = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.SemiBold, fontSize = 18.sp, lineHeight = 22.sp, letterSpacing = 0.3.sp)
+    val Title = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.1.sp)
+    val Button = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = 0.2.sp)
+    val Body = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = 0.25.sp)
+    val Label = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp, letterSpacing = 0.25.sp)
     /** adb commands shown on screen: monospace so they read character by character. */
     val Code = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 17.sp)
-    val Caption = TextStyle(fontFamily = Inter, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 18.sp)
+    val Caption = TextStyle(fontFamily = LauncherFont, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 18.sp, letterSpacing = 0.3.sp)
 }
 
-private val InterTypography: Typography = Typography().run {
+private val LauncherTypography: Typography = Typography().run {
     Typography(
-        displayLarge = displayLarge.copy(fontFamily = Inter),
-        displayMedium = displayMedium.copy(fontFamily = Inter),
-        displaySmall = displaySmall.copy(fontFamily = Inter),
-        headlineLarge = headlineLarge.copy(fontFamily = Inter),
-        headlineMedium = headlineMedium.copy(fontFamily = Inter),
-        headlineSmall = headlineSmall.copy(fontFamily = Inter),
-        titleLarge = titleLarge.copy(fontFamily = Inter),
-        titleMedium = titleMedium.copy(fontFamily = Inter),
-        titleSmall = titleSmall.copy(fontFamily = Inter),
-        bodyLarge = bodyLarge.copy(fontFamily = Inter),
-        bodyMedium = bodyMedium.copy(fontFamily = Inter),
-        bodySmall = bodySmall.copy(fontFamily = Inter),
-        labelLarge = labelLarge.copy(fontFamily = Inter),
-        labelMedium = labelMedium.copy(fontFamily = Inter),
-        labelSmall = labelSmall.copy(fontFamily = Inter),
+        displayLarge = displayLarge.copy(fontFamily = LauncherFont),
+        displayMedium = displayMedium.copy(fontFamily = LauncherFont),
+        displaySmall = displaySmall.copy(fontFamily = LauncherFont),
+        headlineLarge = headlineLarge.copy(fontFamily = LauncherFont),
+        headlineMedium = headlineMedium.copy(fontFamily = LauncherFont),
+        headlineSmall = headlineSmall.copy(fontFamily = LauncherFont),
+        titleLarge = titleLarge.copy(fontFamily = LauncherFont),
+        titleMedium = titleMedium.copy(fontFamily = LauncherFont),
+        titleSmall = titleSmall.copy(fontFamily = LauncherFont),
+        bodyLarge = bodyLarge.copy(fontFamily = LauncherFont),
+        bodyMedium = bodyMedium.copy(fontFamily = LauncherFont),
+        bodySmall = bodySmall.copy(fontFamily = LauncherFont),
+        labelLarge = labelLarge.copy(fontFamily = LauncherFont),
+        labelMedium = labelMedium.copy(fontFamily = LauncherFont),
+        labelSmall = labelSmall.copy(fontFamily = LauncherFont),
     )
 }
 
@@ -141,7 +147,7 @@ fun LauncherTheme(
             onBackground = LauncherColors.TextPrimary,
             onSurface = LauncherColors.TextPrimary,
         ),
-        typography = InterTypography,
+        typography = LauncherTypography,
     ) {
         CompositionLocalProvider(
             LocalAccent provides accent.color,

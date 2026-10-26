@@ -35,7 +35,7 @@ class ConsoleActivity : Activity() {
             textSize = 22f
             gravity = Gravity.CENTER
             setLineSpacing(0f, 1.3f)
-            typeface = runCatching { ResourcesCompat.getFont(context, R.font.inter_medium) }.getOrNull()
+            typeface = runCatching { ResourcesCompat.getFont(context, R.font.jakarta_medium) }.getOrNull()
             // Shown only once the input reports no picture, so a good tune never flashes it.
             visibility = View.GONE
         }

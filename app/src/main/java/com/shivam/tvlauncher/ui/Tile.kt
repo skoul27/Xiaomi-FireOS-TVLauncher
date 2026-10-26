@@ -1,6 +1,19 @@
 package com.shivam.tvlauncher.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -100,6 +113,22 @@ fun GlassTile(
     LaunchedEffect(art != null) {
         if (art != null) artAlpha.animateTo(1f, motionTween(animate, 220))
     }
+    // Being moved: the tile grows a little, and arrows either side nudge outwards.
+    val lift by animateFloatAsState(
+        if (moving) 1f else 0f,
+        if (animate) spring(dampingRatio = 0.6f, stiffness = 320f) else snap(),
+        label = "lift",
+    )
+    val nudge = if (moving && animate) {
+        rememberInfiniteTransition(label = "nudge").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(560, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+            label = "nudge",
+        )
+    } else {
+        null
+    }
 
     Column(modifier = modifier.width(size.width)) {
         Box(
@@ -113,13 +142,15 @@ fun GlassTile(
                 .onMenuKey(onMenu)
                 .remoteClickable(onClick, onLongClick)
                 .graphicsLayer {
-                    val s = 1f + (FocusedScale - 1f) * motion.focus.value
+                    // Grows a touch more while moving; it stays in the row's bleed, so nothing clips it.
+                    val s = 1f + (FocusedScale - 1f) * motion.focus.value + 0.03f * lift
                     scaleX = s
                     scaleY = s
                     // Leans the way focus moved, then springs upright; the far camera keeps it subtle.
                     rotationY = TiltDegrees * motion.tilt.value
                     cameraDistance = 14f * density
                 }
+                .movingArrows(lift, nudge, accent)
                 .focusGlow(motion, accent)
                 .tileBorder(motion, accent, moving)
                 .clip(TileShape)
@@ -128,7 +159,7 @@ fun GlassTile(
             if (art == null) content()
         }
         if (label != null) Text(
-            text = if (moving) "‹   OK to place   ›" else label,
+            text = if (moving) "OK to place" else label,
             style = LauncherText.Label,
             color = if (moving) accent else LauncherColors.TextPrimary,
             maxLines = 1,
@@ -137,13 +168,36 @@ fun GlassTile(
                 .padding(top = 10.dp, start = 2.dp, end = 2.dp)
                 .graphicsLayer {
                     // Ride below the scaled tile instead of being covered by it.
-                    translationY = (FocusedScale - 1f) * motion.focus.value * size.height.toPx() / 2f
+                    translationY = (FocusedScale - 1f + 0.03f * lift) * motion.focus.value * size.height.toPx() / 2f
                     alpha = 0.55f + 0.45f * motion.amount
                     // Text never overlaps itself, so per-op alpha looks identical and skips an offscreen buffer.
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 },
         )
     }
+}
+
+/**
+ * Chevrons just outside the tile's left and right edges while it's being moved, fading in with
+ * [lift] and drifting outwards with [nudge] (still when animations are off).
+ */
+private fun Modifier.movingArrows(lift: Float, nudge: State<Float>?, color: Color): Modifier = drawWithContent {
+    drawContent()
+    if (lift <= 0.01f) return@drawWithContent
+    val arm = 7.dp.toPx()
+    val stroke = 2.5.dp.toPx()
+    val drift = 4.dp.toPx() * (nudge?.value ?: 0.5f)
+    val gap = 12.dp.toPx() + drift
+    val cy = size.height / 2f
+    val tint = color.copy(alpha = lift.coerceIn(0f, 1f))
+    // Left: pointing left, outside the left edge.
+    val lx = -gap
+    drawLine(tint, Offset(lx, cy - arm), Offset(lx - arm, cy), stroke, StrokeCap.Round)
+    drawLine(tint, Offset(lx - arm, cy), Offset(lx, cy + arm), stroke, StrokeCap.Round)
+    // Right: pointing right, outside the right edge.
+    val rx = size.width + gap
+    drawLine(tint, Offset(rx, cy - arm), Offset(rx + arm, cy), stroke, StrokeCap.Round)
+    drawLine(tint, Offset(rx + arm, cy), Offset(rx, cy + arm), stroke, StrokeCap.Round)
 }
 
 /** Art, a dimming veil that lifts on focus, and the glass top highlight. */

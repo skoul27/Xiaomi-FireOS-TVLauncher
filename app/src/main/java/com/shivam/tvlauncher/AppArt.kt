@@ -225,7 +225,7 @@ private fun renderLetterTile(context: Context, label: String, colors: ArtColors)
         alpha = 235
         textSize = TILE_ART_HEIGHT * 0.42f
         textAlign = Paint.Align.CENTER
-        typeface = runCatching { ResourcesCompat.getFont(context, R.font.inter_semibold) }.getOrNull()
+        typeface = runCatching { ResourcesCompat.getFont(context, R.font.jakarta_semibold) }.getOrNull()
     }
     val baseline = TILE_ART_HEIGHT / 2f - (paint.descent() + paint.ascent()) / 2f
     Canvas(out).drawText(letter, TILE_ART_WIDTH / 2f, baseline, paint)

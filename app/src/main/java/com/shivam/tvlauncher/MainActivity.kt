@@ -1,5 +1,6 @@
 package com.shivam.tvlauncher
 
+import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
@@ -44,6 +45,23 @@ class MainActivity : ComponentActivity() {
         // The system dialog confirms; onResume's refresh drops the app if it was removed.
         override fun uninstall(app: LaunchableApp) {
             start(Intent(Intent.ACTION_DELETE, packageUri(app)), "Can't uninstall ${app.label}")
+        }
+
+        // Every other app is in the background while we're in front, so this ends them all; the
+        // system never kills a foreground app this way. Our own process is left out.
+        // Apps playing media are stopped first: their playback service otherwise keeps them alive.
+        override fun closeApps(apps: List<LaunchableApp>) {
+            val am = getSystemService(ActivityManager::class.java)
+            val packages = apps.map { it.packageName }.toSet() - packageName
+            val kill = { packages.forEach { runCatching { am.killBackgroundProcesses(it) } } }
+            if (stopMediaSessions(this@MainActivity, packages)) {
+                // Give the apps a moment to stop playback and drop their foreground service.
+                window.decorView.postDelayed(kill, 1500)
+            } else {
+                kill()
+            }
+            val message = apps.singleOrNull()?.let { "Closed ${it.label}" } ?: "Closed all apps"
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
         }
 
         override fun openShortcut(shortcut: SystemShortcut) {

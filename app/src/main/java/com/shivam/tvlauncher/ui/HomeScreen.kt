@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +48,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.BlendMode
@@ -87,6 +89,8 @@ interface LauncherActions {
     fun unhide(app: LaunchableApp)
     fun openAppInfo(app: LaunchableApp)
     fun uninstall(app: LaunchableApp)
+    /** Ends these apps' background processes, so they start fresh next time. */
+    fun closeApps(apps: List<LaunchableApp>)
     fun openShortcut(shortcut: SystemShortcut)
     fun openWifiSettings()
     fun openCast()
@@ -539,6 +543,8 @@ private fun AppMenuFor(
                 }
                 MenuAction.AppInfo -> actions.openAppInfo(app)
                 MenuAction.Uninstall -> actions.uninstall(app)
+                MenuAction.Close -> actions.closeApps(listOf(app))
+                MenuAction.CloseAll -> actions.closeApps(ui.all + ui.hidden)
             }
             onDismiss()
         },
@@ -593,6 +599,7 @@ private fun AppRow(
 ) {
     val listState = rememberLazyListState()
     val pendingRequester = remember { FocusRequester() }
+    val animate = LocalAnimationsEnabled.current
 
     LazyRow(
         state = listState,
@@ -602,13 +609,20 @@ private fun AppRow(
         modifier = Modifier.overlappingBleed(RowBleed).fillMaxWidth().fadingHorizontalEdges(EdgeFade).focusRestorer(),
     ) {
         itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
-            var tileModifier: Modifier = Modifier
+            // Reorders slide: the moved tile and the one it swaps with glide past each other.
+            var tileModifier: Modifier = if (animate) {
+                Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = spring(dampingRatio = 0.78f, stiffness = 420f))
+            } else {
+                Modifier
+            }
             if (index == 0 && firstItemFocus != null) tileModifier = tileModifier.focusRequester(firstItemFocus)
             if (app.packageName == pendingFocus) tileModifier = tileModifier.focusRequester(pendingRequester)
             val isMoving = app.packageName == moving
             // Focus stays on the tile as it moves, so nothing else scrolls it into view.
             val bring = remember { BringIntoViewRequester() }
             if (isMoving) {
+                // Above its neighbours, so its arrows and the tile it slides past don't cover it.
+                tileModifier = tileModifier.zIndex(1f)
                 LaunchedEffect(index) { withFrameNanos { }; bring.bringIntoView() }
                 tileModifier = tileModifier.onPreviewKeyEvent { event ->
                     val down = event.type == KeyEventType.KeyDown
@@ -637,6 +651,15 @@ private fun AppRow(
                 moving = isMoving,
                 modifier = tileModifier.bringIntoViewRequester(bring),
             )
+        }
+    }
+
+    // A lazy row keeps its first visible item in place when the order changes, so a tile moved
+    // to (or past) the front would slide off the left edge; scroll back to keep it in view.
+    val movingIndex = apps.indexOfFirst { it.packageName == moving }
+    LaunchedEffect(movingIndex) {
+        if (movingIndex >= 0 && movingIndex <= listState.firstVisibleItemIndex) {
+            if (animate) listState.animateScrollToItem(movingIndex) else listState.scrollToItem(movingIndex)
         }
     }
 

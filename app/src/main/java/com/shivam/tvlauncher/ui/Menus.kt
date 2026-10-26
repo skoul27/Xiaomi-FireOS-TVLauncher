@@ -9,6 +9,8 @@ import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -43,6 +45,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -74,14 +78,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-enum class MenuAction { TogglePin, Move, Hide, AppInfo, Uninstall }
+enum class MenuAction { TogglePin, Move, Hide, AppInfo, Uninstall, Close, CloseAll }
 
 /** A tile's two menus: long-press OK arranges it, the remote's Menu (≡) button manages the app. */
 enum class AppMenuKind { Arrange, Manage }
 
 /**
- * One tile's menu. Arrange: add or remove from My Apps, Move (where order is the user's), Hide.
- * Manage: App info and Uninstall. Every action closes it.
+ * One tile's menu: the app's artwork and name on top, then actions with icons.
+ * Arrange (long-press OK): add or remove from My Apps, Move (where order is the user's), Hide.
+ * Manage (Menu button): Close app, Close all apps, App info, Uninstall. Every action closes it.
  */
 @Composable
 fun AppMenu(
@@ -94,30 +99,80 @@ fun AppMenu(
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
-    MenuDialog(onDismiss) {
-        PanelTitle(app.label)
+    MenuDialog(onDismiss, width = 380) {
+        AppMenuHeader(
+            app,
+            subtitle = when {
+                kind == AppMenuKind.Manage -> "App options"
+                isPinned -> "In My Apps"
+                else -> "Not in My Apps"
+            },
+        )
+        MenuDivider()
         when (kind) {
             AppMenuKind.Arrange -> {
-                MenuItem(if (isPinned) "Remove from My Apps" else "Add to My Apps", Modifier.focusRequester(first)) {
-                    onAction(MenuAction.TogglePin)
-                }
-                if (canMove) MenuItem("Move") { onAction(MenuAction.Move) }
-                MenuItem("Hide") { onAction(MenuAction.Hide) }
+                ActionItem(
+                    if (isPinned) MenuIcons.Remove else MenuIcons.Add,
+                    if (isPinned) "Remove from My Apps" else "Add to My Apps",
+                    Modifier.focusRequester(first),
+                ) { onAction(MenuAction.TogglePin) }
+                if (canMove) ActionItem(MenuIcons.Move, "Move") { onAction(MenuAction.Move) }
+                ActionItem(MenuIcons.Hide, "Hide") { onAction(MenuAction.Hide) }
                 Text(
-                    "Menu button (≡): app info and uninstall",
+                    "≡  Menu button for close, app info and uninstall",
                     style = LauncherText.Caption,
                     color = LauncherColors.TextTertiary,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
                 )
             }
             AppMenuKind.Manage -> {
-                MenuItem("App info", Modifier.focusRequester(first)) { onAction(MenuAction.AppInfo) }
-                if (!app.isSystem) MenuItem("Uninstall") { onAction(MenuAction.Uninstall) }
+                ActionItem(MenuIcons.Close, "Close app", Modifier.focusRequester(first)) { onAction(MenuAction.Close) }
+                ActionItem(MenuIcons.CloseAll, "Close all apps") { onAction(MenuAction.CloseAll) }
+                MenuDivider()
+                ActionItem(MenuIcons.Info, "App info") { onAction(MenuAction.AppInfo) }
+                if (!app.isSystem) ActionItem(MenuIcons.Delete, "Uninstall", danger = true) { onAction(MenuAction.Uninstall) }
             }
         }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
+
+/** The app's tile art beside its name, so the menu shows which app it's about. */
+@Composable
+private fun AppMenuHeader(app: LaunchableApp, subtitle: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
+    ) {
+        Box(Modifier.size(96.dp, 54.dp).clip(RoundedCornerShape(10.dp)).background(Glass.TileBase)) {
+            rememberAppArt(app)?.tile?.let {
+                Image(it, null, contentScale = ContentScale.FillBounds, filterQuality = FilterQuality.Low, modifier = Modifier.size(96.dp, 54.dp))
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(app.label, style = LauncherText.Title, color = LauncherColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, style = LauncherText.Caption, color = LauncherColors.TextSecondary, maxLines = 1)
+        }
+    }
+}
+
+/** A menu row with a leading icon. [danger] tints it red at rest (Uninstall). */
+@Composable
+private fun ActionItem(icon: Path, text: String, modifier: Modifier = Modifier, danger: Boolean = false, onClick: () -> Unit) {
+    FocusRow(modifier = modifier.height(50.dp), onClick = onClick) { focused ->
+        val color = when {
+            focused -> LauncherColors.Ink
+            danger -> DangerColor
+            else -> LauncherColors.TextPrimary
+        }
+        PathIcon(icon, color, size = 20.dp)
+        Spacer(Modifier.width(14.dp))
+        Text(text, style = LauncherText.Body, color = color)
+    }
+}
+
+private val DangerColor = Color(0xFFFF8A80)
 
 /**
  * The gear button's panel: Hidden apps and Launcher settings, then the Fire OS settings screens
@@ -366,7 +421,7 @@ fun RenameTileMenu(port: HdmiPort, initial: String, onSave: (String) -> Unit, on
                     imeOptions = EditorInfo.IME_ACTION_DONE
                     setTextColor(android.graphics.Color.WHITE)
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-                    typeface = runCatching { ResourcesCompat.getFont(context, R.font.inter_medium) }.getOrNull()
+                    typeface = runCatching { ResourcesCompat.getFont(context, R.font.jakarta_medium) }.getOrNull()
                     background = null
                     val padH = (16 * resources.displayMetrics.density).toInt()
                     val padV = (12 * resources.displayMetrics.density).toInt()
@@ -532,12 +587,23 @@ private fun MenuDivider() {
     )
 }
 
+/** Every menu panel: springs up from slightly small and transparent as it opens. */
 @Composable
 private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Composable ColumnScope.() -> Unit) {
+    val animate = LocalAnimationsEnabled.current
+    val appear = remember { Animatable(if (animate) 0f else 1f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 520f)) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
                 .width(width.dp)
+                .graphicsLayer {
+                    val t = appear.value
+                    val s = 0.9f + 0.1f * t
+                    scaleX = s
+                    scaleY = s
+                    alpha = t.coerceIn(0f, 1f)
+                }
                 .glass(PanelShape, fill = Glass.PanelFill)
                 .padding(vertical = 16.dp, horizontal = 12.dp)
                 .navigationSounds()

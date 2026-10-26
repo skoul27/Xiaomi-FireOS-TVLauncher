@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -178,6 +179,56 @@ fun OpenIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
         }
         drawPath(head, color, style = line)
     }
+}
+
+/** A 24-unit icon path, filled and scaled to [size]. */
+@Composable
+fun PathIcon(path: Path, color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        scale(this.size.width / 24f, pivot = Offset.Zero) { drawPath(path, color) }
+    }
+}
+
+/** The app menus' icons: Material Icons outlines (Apache License 2.0), 24-unit paths. */
+object MenuIcons {
+    private fun icon(d: String): Path = PathParser().parsePathString(d).toPath()
+
+    val Add: Path by lazy {
+        icon("M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z")
+    }
+    val Remove: Path by lazy {
+        icon("M7 11v2h10v-2H7zm5-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z")
+    }
+    val Move: Path by lazy {
+        icon("M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z")
+    }
+    val Hide: Path by lazy {
+        icon(
+            "M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5" +
+                "-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12" +
+                "c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55" +
+                "c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5" +
+                " 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z",
+        )
+    }
+    val Info: Path by lazy {
+        // The ring (even-odd, so its middle is empty) plus the "i" drawn on top as its own shapes.
+        icon("M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z")
+            .apply {
+                fillType = PathFillType.EvenOdd
+                addPath(icon("M11 7h2v2h-2z M11 11h2v6h-2z"))
+            }
+    }
+    val Delete: Path by lazy {
+        icon("M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4h-3.5z")
+    }
+    val Close: Path by lazy {
+        icon(
+            "M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8z" +
+                "M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z",
+        )
+    }
+    val CloseAll: Path by lazy { icon("M5 13h14v-2H5v2zm-2 4h14v-2H3v2zM7 7v2h14V7H7z") }
 }
 
 /** A 3×3 grid of rounded squares: all apps. */

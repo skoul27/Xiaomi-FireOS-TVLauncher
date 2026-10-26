@@ -114,6 +114,19 @@ fun nowPlayingFlow(context: Context): Flow<NowPlaying?> = callbackFlow {
     }
 }.conflate()
 
+/**
+ * Stops playback in these apps' media sessions; true if any was stopped. An app playing media
+ * runs a foreground service, which Android won't close from outside until playback stops.
+ */
+fun stopMediaSessions(context: Context, packages: Set<String>): Boolean {
+    val manager = context.getSystemService(MediaSessionManager::class.java)
+    val listener = ComponentName(context, MediaListenerService::class.java)
+    val sessions = runCatching { manager.getActiveSessions(listener) }.getOrNull().orEmpty()
+        .filter { it.packageName in packages }
+    sessions.forEach { runCatching { it.transportControls.stop() } }
+    return sessions.isNotEmpty()
+}
+
 private fun pick(context: Context, controllers: List<MediaController>): NowPlaying? {
     val shown = controllers.filter { it.state() != null && it.title() != null }
     val controller = shown.firstOrNull { it.state() == true } ?: shown.firstOrNull() ?: return null

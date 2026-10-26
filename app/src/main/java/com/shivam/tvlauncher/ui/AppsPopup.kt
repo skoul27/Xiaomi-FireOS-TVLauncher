@@ -118,6 +118,8 @@ fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit
                     MenuAction.Hide -> actions.hide(menuApp)
                     MenuAction.AppInfo -> actions.openAppInfo(menuApp)
                     MenuAction.Uninstall -> actions.uninstall(menuApp)
+                    MenuAction.Close -> actions.closeApps(listOf(menuApp))
+                    MenuAction.CloseAll -> actions.closeApps(ui.all + ui.hidden)
                     MenuAction.Move -> {}
                 }
                 menuFor = null

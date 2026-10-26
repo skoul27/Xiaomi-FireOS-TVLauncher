@@ -10,6 +10,9 @@
     <!-- Only for the clock's weather line: the place from ipwho.is, the weather from Open-Meteo. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- The Menu button's Close app / Close all apps (background processes only). -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+
     <!-- Lets the long-press menu open the system uninstall dialog. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
