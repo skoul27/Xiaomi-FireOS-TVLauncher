@@ -80,6 +80,31 @@ The launcher checks this for you: when the chosen color button's service isn't e
 Settings panel (gear) shows a notice with these two commands already filled in from the current
 list. The launcher only reads the setting; it never changes it.
 
+## Now playing card (notification listener)
+
+Android only lets an app see other apps' media sessions (what Spotify, YouTube etc. are playing)
+while it has an allowed notification listener. Fire OS has no on-screen switch for that either,
+so it was allowed over adb on 2026-10-26. The launcher's listener never reads notifications; it
+exists only to unlock the media sessions. Value before the change:
+
+```
+enabled_notification_listeners = null   (unset)
+```
+
+How it was allowed:
+
+```sh
+adb shell cmd notification allow_listener com.shivam.tvlauncher/com.shivam.tvlauncher.MediaListenerService
+```
+
+To undo it (the card then simply never appears):
+
+```sh
+adb shell cmd notification disallow_listener com.shivam.tvlauncher/com.shivam.tvlauncher.MediaListenerService
+```
+
+If a Fire OS update or a reinstall drops it, run the allow command again.
+
 ## Backing up and restoring your setup
 
 Your pins and their order, hidden apps, All apps order, console tiles, theme, animations and

@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.shivam.tvlauncher.AppArtCache
 import com.shivam.tvlauncher.LaunchableApp
@@ -29,7 +30,7 @@ class HeroState {
 }
 
 /**
- * The time, large, over the date and (once it loads) the weather. The focused app only
+ * The time over the date and (once it loads) the weather. The focused app only
  * tints the backdrop behind it; its name is already under its tile. Only this recomposes when the
  * minute ticks.
  */
@@ -61,7 +62,7 @@ fun Hero(modifier: Modifier = Modifier) {
                     if (weather.summary.isNotEmpty()) append(" ${weather.summary}")
                 }
             },
-            style = LauncherText.Title.copy(fontWeight = LauncherText.Body.fontWeight),
+            style = LauncherText.Body.copy(fontSize = 18.sp, lineHeight = 24.sp),
             color = LauncherColors.TextSecondary,
         )
     }

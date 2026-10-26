@@ -83,6 +83,18 @@
                 android:resource="@xml/shortcut_key_service" />
         </service>
 
+        <!-- Only so the Now playing card may read other apps' media sessions; it never reads
+             notifications. Allowed over adb (see RECOVERY.md). -->
+        <service
+            android:name=".MediaListenerService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Lets adb copy the backup file in and out (Fire OS blocks adb from Android/data).
              Exported so the shell can reach it; the provider refuses every caller but adb. -->
         <provider

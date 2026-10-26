@@ -62,6 +62,7 @@ import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.Console
 import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
+import com.shivam.tvlauncher.NowPlaying
 import com.shivam.tvlauncher.PortTile
 import com.shivam.tvlauncher.TileMode
 import com.shivam.tvlauncher.consolesFor
@@ -191,6 +192,15 @@ fun HomeScreen(
         { runCatching { (if (hasPins) initialFocus else allAppsButton).requestFocus() }; Unit }
     }
 
+    // The Now playing card. While it has focus it stays, showing the last session, even if that
+    // session ends: removing the focused card would leave focus nowhere.
+    val playing = rememberNowPlaying()
+    val nowPlayingFocus = remember { FocusRequester() }
+    var nowPlayingFocused by remember { mutableStateOf(false) }
+    val lastPlaying = remember { arrayOfNulls<NowPlaying>(1) }
+    if (playing != null) lastPlaying[0] = playing
+    val shownPlaying = playing ?: lastPlaying[0].takeIf { nowPlayingFocused }
+
     // Color buttons, from wherever focus is. Acts on the press; the release is just swallowed.
     // While a pop-up is open its own window gets the keys; each closes on the button that opened it.
     Box(
@@ -225,11 +235,24 @@ fun HomeScreen(
         BackdropDriver(hero, backdrop)
 
         Column(Modifier.fillMaxSize()) {
-            Hero(
-                modifier = Modifier
+            Box(
+                Modifier
                     .weight(1f)
+                    .fillMaxWidth()
                     .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal, bottom = 32.dp),
-            )
+            ) {
+                Hero(Modifier.align(Alignment.BottomStart))
+                shownPlaying?.let {
+                    NowPlayingCard(
+                        it,
+                        nowPlayingFocus,
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .onFocusChanged { state -> nowPlayingFocused = state.hasFocus }
+                            .onDpad(Key.DirectionDown, enterMyApps),
+                    )
+                }
+            }
 
             SectionHeader("My Apps")
             Spacer(Modifier.height(HeaderGap))
@@ -276,7 +299,9 @@ fun HomeScreen(
             },
             modifier = Modifier
                 .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)
-                .onDpad(Key.DirectionDown, enterMyApps),
+                .onDpad(Key.DirectionDown) {
+                    if (shownPlaying != null) runCatching { nowPlayingFocus.requestFocus() }.isSuccess else enterMyApps()
+                },
         )
 
         if (ui != null) {

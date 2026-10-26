@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -103,6 +104,34 @@ private val CastPath: Path by lazy {
         "M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2" +
             "c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
     ).toPath()
+}
+
+/** A right-pointing triangle, rounded a little: play. */
+@Composable
+fun PlayIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val path = Path().apply {
+            moveTo(w * 0.24f, w * 0.12f)
+            lineTo(w * 0.88f, w * 0.5f)
+            lineTo(w * 0.24f, w * 0.88f)
+            close()
+        }
+        drawPath(path, color)
+        drawPath(path, color, style = Stroke(width = w * 0.08f, join = StrokeJoin.Round))
+    }
+}
+
+/** Two rounded bars: pause. */
+@Composable
+fun PauseIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val bar = Size(w * 0.24f, w * 0.76f)
+        for (x in listOf(0.18f, 0.58f)) {
+            drawRoundRect(color, topLeft = Offset(w * x, w * 0.12f), size = bar, cornerRadius = CornerRadius(w * 0.06f))
+        }
+    }
 }
 
 /** A 3×3 grid of rounded squares: all apps. */
