@@ -141,7 +141,7 @@ fun SystemMenu(
             Modifier.focusRequester(first),
             onClick = onHiddenApps,
         )
-        NavItem("Launcher settings", "Theme, shortcuts and backup", onClick = onLauncherSettings)
+        NavItem("Launcher settings", "Theme, shortcuts, console tiles and backup", onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -186,7 +186,7 @@ private fun ShortcutOffNotice(key: ColorKey, commands: List<String>) {
 }
 
 /** Where Launcher settings leads. Back from one of them puts focus on its row again. */
-enum class LauncherSection { Theme, Shortcuts, More }
+enum class LauncherSection { Theme, Shortcuts, ConsoleTiles, More }
 
 /** This launcher's own settings: three groups, each a panel of its own. */
 @Composable
@@ -198,11 +198,14 @@ fun LauncherSettingsMenu(
     val rows = remember { LauncherSection.entries.associateWith { FocusRequester() } }
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Launcher settings")
-        NavItem("Theme", "Accent colour, animations and console tiles", Modifier.focusRequester(rows.getValue(LauncherSection.Theme))) {
+        NavItem("Theme", "Accent colour and animations", Modifier.focusRequester(rows.getValue(LauncherSection.Theme))) {
             onOpen(LauncherSection.Theme)
         }
         NavItem("Shortcuts", "Home button and remote shortcut", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts))) {
             onOpen(LauncherSection.Shortcuts)
+        }
+        NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(rows.getValue(LauncherSection.ConsoleTiles))) {
+            onOpen(LauncherSection.ConsoleTiles)
         }
         NavItem("More settings", "Export or import a backup", Modifier.focusRequester(rows.getValue(LauncherSection.More))) {
             onOpen(LauncherSection.More)
@@ -211,19 +214,17 @@ fun LauncherSettingsMenu(
     LaunchedEffect(Unit) { runCatching { rows.getValue(returnedFrom ?: LauncherSection.Theme).requestFocus() } }
 }
 
-/** Accent colour, animations, and the console cards. Left and right change a value. */
+/** Accent colour and animations. Left and right change a value. */
 @Composable
-fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, focusConsoleTiles: Boolean, onConsoleTiles: () -> Unit, onDismiss: () -> Unit) {
+fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, onDismiss: () -> Unit) {
     val first = remember { FocusRequester() }
-    val tiles = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Theme")
         val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
         SettingItem("Accent", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first), onStep = stepAccent)
         SettingItem("Animations", if (animations) "On" else "Off", onStep = { actions.setAnimations(!animations) })
-        NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
     }
-    LaunchedEffect(Unit) { runCatching { (if (focusConsoleTiles) tiles else first).requestFocus() } }
+    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
 
 /** What the Home button and a colour button on the remote do. Left and right change a value. */

@@ -125,6 +125,7 @@ private enum class SettingsPanel { Launcher, Theme, Shortcuts, More, ConsoleTile
 private fun LauncherSection.panel(): SettingsPanel = when (this) {
     LauncherSection.Theme -> SettingsPanel.Theme
     LauncherSection.Shortcuts -> SettingsPanel.Shortcuts
+    LauncherSection.ConsoleTiles -> SettingsPanel.ConsoleTiles
     LauncherSection.More -> SettingsPanel.More
 }
 
@@ -309,14 +310,7 @@ fun HomeScreen(
                 onOpen = { openPanel(it.panel()) },
                 onDismiss = closePanel,
             )
-            SettingsPanel.Theme -> ThemeMenu(
-                accent = LocalAccentTheme.current,
-                animations = animate,
-                actions = actions,
-                focusConsoleTiles = returnedFrom == SettingsPanel.ConsoleTiles,
-                onConsoleTiles = { openPanel(SettingsPanel.ConsoleTiles) },
-                onDismiss = closePanel,
-            )
+            SettingsPanel.Theme -> ThemeMenu(LocalAccentTheme.current, animate, actions, onDismiss = closePanel)
             SettingsPanel.Shortcuts -> ShortcutsMenu(homeRedirect, remoteShortcut, actions, onDismiss = closePanel)
             SettingsPanel.ConsoleTiles -> {
                 ConsoleTilesMenu(
