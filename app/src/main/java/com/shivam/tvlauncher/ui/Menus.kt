@@ -36,6 +36,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -198,8 +199,24 @@ fun LauncherSettingsMenu(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
+        // Plain text, so the D-pad never stops on it.
+        Text(
+            "Version ${rememberVersionName()} · Developer: skoul27 · koul@duck.com",
+            style = LauncherText.Caption,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        )
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/** This app's versionName from its installed package. */
+@Composable
+private fun rememberVersionName(): String {
+    val context = LocalContext.current
+    return remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+    }
 }
 
 /** Shows what a valid backup holds before it replaces anything. Cancel has focus first. */
