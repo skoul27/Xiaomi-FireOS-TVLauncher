@@ -80,17 +80,19 @@ fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit
     var menuKind by remember { mutableStateOf(AppMenuKind.Arrange) }
     val matches = remember(ui.all, query) { filterApps(ui.all, query) }
 
-    PopupDialog(onDismiss, closeKey = ColorKey.Blue, width = 600.dp, onType = { query = it(query) }) { close ->
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().height(40.dp)) {
-            Text("All apps", style = LauncherText.Title, color = LauncherColors.TextPrimary)
-            Spacer(Modifier.width(18.dp))
-            SearchField(query, Modifier.weight(1f))
-            Spacer(Modifier.width(8.dp))
-            KeyCap("⌫", width = 46.dp) { query = query.dropLast(1) }
-            Spacer(Modifier.width(6.dp))
-            KeyCap("Clear", width = 66.dp) { query = "" }
-        }
-        Spacer(Modifier.height(10.dp))
+    PopupDialog(onDismiss, closeKey = ColorKey.Blue, width = 640.dp, onType = { query = it(query) }) { close ->
+        PanelHeader(
+            "All apps",
+            if (query.isEmpty()) "${ui.all.size} apps" else "${matches.size} of ${ui.all.size}",
+            trailing = {
+                SearchField(query, Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
+                KeyCap("⌫", width = 46.dp) { query = query.dropLast(1) }
+                Spacer(Modifier.width(6.dp))
+                KeyCap("Clear", width = 66.dp) { query = "" }
+            },
+        ) { GridIcon(it, size = 24.dp) }
+        Spacer(Modifier.height(4.dp))
         LetterKeys { query += it }
         Spacer(Modifier.height(14.dp))
         AppList(
@@ -133,14 +135,22 @@ fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit
 @Composable
 fun HiddenAppsPopup(apps: List<LaunchableApp>, onUnhide: (LaunchableApp) -> Unit, onDismiss: () -> Unit) {
     PopupDialog(onDismiss, closeKey = ColorKey.Yellow, width = 520.dp) { close ->
-        Text("Hidden apps", style = LauncherText.Title, color = LauncherColors.TextPrimary)
-        Text(
-            if (apps.isEmpty()) "Nothing is hidden. Long-press OK on an app and choose Hide." else "Select an app to show it again.",
-            style = LauncherText.Caption,
-            color = LauncherColors.TextSecondary,
-            modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+        PanelHeader(
+            "Hidden apps",
+            when (apps.size) {
+                0 -> "Nothing is hidden"
+                1 -> "1 app · select it to show it again"
+                else -> "${apps.size} apps · select one to show it again"
+            },
+            MenuIcons.Hide,
         )
         if (apps.isEmpty()) {
+            Text(
+                "Long-press OK on an app and choose Hide.",
+                style = LauncherText.Body,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 14.dp),
+            )
             // Something focusable, so the color button and OK still reach this window.
             val closeButton = remember { FocusRequester() }
             GlassButton(onClick = close, modifier = Modifier.height(40.dp).focusRequester(closeButton)) { focused ->
@@ -358,9 +368,9 @@ private fun AppList(
                             }
                             .onMenuKey(onMenu?.let { { it(app) } })
                             .remoteClickable(onClick = { onClick(app) }, onLongClick = onLongClick?.let { { it(app) } })
+                            // Focus like the menus' rows: solid white, dark text.
                             .clip(ItemShape)
-                            .background(if (focused) Glass.FillFocused else Color.Transparent)
-                            .border(1.5.dp, if (focused) accent else Color.Transparent, ItemShape)
+                            .background(if (focused) LauncherColors.TextPrimary else Color.Transparent)
                             .padding(horizontal = 12.dp),
                     ) {
                         rowContent(app, focused)
@@ -398,12 +408,12 @@ private fun RowScope.AppRowContent(app: LaunchableApp, focused: Boolean, trailin
     Text(
         app.label,
         style = LauncherText.Body,
-        color = LauncherColors.TextPrimary,
+        color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.weight(1f),
     )
     if (trailing != null && focused) {
-        Text(trailing, style = LauncherText.Caption, color = LauncherColors.TextSecondary)
+        Text(trailing, style = LauncherText.Caption, color = LauncherColors.Ink.copy(alpha = 0.6f))
     }
 }

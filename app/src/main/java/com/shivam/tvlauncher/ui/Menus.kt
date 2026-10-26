@@ -118,12 +118,6 @@ fun AppMenu(
                 ) { onAction(MenuAction.TogglePin) }
                 if (canMove) ActionItem(MenuIcons.Move, "Move") { onAction(MenuAction.Move) }
                 ActionItem(MenuIcons.Hide, "Hide") { onAction(MenuAction.Hide) }
-                Text(
-                    "≡  Menu button for close, app info and uninstall",
-                    style = LauncherText.Caption,
-                    color = LauncherColors.TextTertiary,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp),
-                )
             }
             AppMenuKind.Manage -> {
                 ActionItem(MenuIcons.Close, "Close app", Modifier.focusRequester(first)) { onAction(MenuAction.Close) }
@@ -641,15 +635,21 @@ private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Compos
 }
 
 /**
- * The settings panels' header, matching the app menus': an accent-tinted tile holding the panel's
- * icon beside its title and a line about it, then a divider.
+ * Every panel's header, matching the app menus': an accent-tinted tile holding the panel's icon
+ * beside its title and a line about it, then a divider. [trailing] fills the rest of the row
+ * (the All apps search).
  */
 @Composable
-private fun PanelHeader(title: String, subtitle: String, icon: @Composable (Color) -> Unit) {
+fun PanelHeader(
+    title: String,
+    subtitle: String,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+    icon: @Composable (Color) -> Unit,
+) {
     val accent = LocalAccent.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 6.dp),
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -660,12 +660,16 @@ private fun PanelHeader(title: String, subtitle: String, icon: @Composable (Colo
             Text(title, style = LauncherText.Title, color = LauncherColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = LauncherText.Caption, color = LauncherColors.TextSecondary, maxLines = 1)
         }
+        if (trailing != null) {
+            Spacer(Modifier.width(20.dp))
+            trailing()
+        }
     }
     MenuDivider()
 }
 
 @Composable
-private fun PanelHeader(title: String, subtitle: String, icon: Path) =
+fun PanelHeader(title: String, subtitle: String, icon: Path) =
     PanelHeader(title, subtitle) { PathIcon(icon, it, size = 26.dp) }
 
 /** A row's leading icon, in the row's text colour, with the gap after it. */
