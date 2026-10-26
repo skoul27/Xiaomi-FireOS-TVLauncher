@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -43,30 +46,34 @@ import com.shivam.tvlauncher.ConsoleBrand
 import kotlin.math.min
 
 /**
- * A console's card: its brand mark, its name, and the HDMI port with a dot for whether the TV
- * sees the device there (green on, amber resting, grey unknown). [compact] is one app column
- * wide, for when more than two cards share the row.
+ * A console's card, laid out like the panel headers: the brand mark in a rounded tile of the
+ * brand's colour, the name as a title, and "HDMI 3 · Standby" under it with a dot for whether
+ * the TV sees the device there (green on, amber resting, grey unknown). The card itself is glass
+ * washed with the brand colour. [compact] is one app column wide, for more than two cards.
  */
 @Composable
 fun ConsoleTile(console: Console, compact: Boolean, onClick: () -> Unit, onLongClick: () -> Unit, modifier: Modifier = Modifier) {
     val state = rememberInputState(console.inputId)
     val size = if (compact) TileSize.ConsoleCompact else TileSize.Console
+    val brand = brandColor(console.brand)
     GlassTile(size = size, label = null, art = null, onClick = onClick, onLongClick = onLongClick, modifier = modifier) {
-        val background = Modifier.fillMaxSize().background(brandBackground(console.brand))
+        val background = Modifier
+            .fillMaxSize()
+            .background(Brush.linearGradient(listOf(brand.copy(alpha = 0.42f), brand.copy(alpha = 0.10f))))
         if (compact) {
             Column(verticalArrangement = Arrangement.Center, modifier = background.padding(horizontal = 14.dp)) {
-                BrandMark(console, 26.dp)
+                BrandMark(console, brand, 34.dp)
                 Spacer(Modifier.height(8.dp))
-                Text(console.name, style = LauncherText.Label, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                PortLine(console.port, state, fontSize = 13)
+                Text(console.name, style = LauncherText.Label.copy(fontWeight = FontWeight.Bold), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                PortLine(console.port, state, compact = true)
             }
         } else {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = background.padding(horizontal = 24.dp)) {
-                BrandMark(console, 46.dp)
-                Spacer(Modifier.width(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = background.padding(horizontal = 20.dp)) {
+                BrandMark(console, brand, 56.dp)
+                Spacer(Modifier.width(16.dp))
                 Column {
                     Text(console.name, style = LauncherText.Title, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    PortLine(console.port, state, fontSize = 15)
+                    PortLine(console.port, state, compact = false)
                 }
             }
         }
@@ -74,46 +81,63 @@ fun ConsoleTile(console: Console, compact: Boolean, onClick: () -> Unit, onLongC
 }
 
 @Composable
-private fun PortLine(port: String, state: Int?, fontSize: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-        Box(Modifier.size(8.dp).background(stateColor(state), CircleShape))
-        Spacer(Modifier.width(8.dp))
-        Text(port, style = LauncherText.Body.copy(fontSize = fontSize.sp), color = Color.White.copy(alpha = 0.8f), maxLines = 1)
+private fun PortLine(port: String, state: Int?, compact: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+        Box(Modifier.size(7.dp).background(stateColor(state), CircleShape))
+        Spacer(Modifier.width(7.dp))
+        Text(
+            // The compact card has room for the port only.
+            if (compact) port else listOfNotNull(port, stateLabel(state)).joinToString(" · "),
+            style = LauncherText.Caption.copy(fontSize = if (compact) 12.sp else 14.sp),
+            color = Color.White.copy(alpha = 0.78f),
+            maxLines = 1,
+        )
     }
 }
 
-/** The brand's symbol; an Other tile gets the first letter of its name in a ring. */
+/** The brand's symbol, white in a rounded tile of the brand's colour; Other shows its initial. */
 @Composable
-private fun BrandMark(console: Console, size: Dp) {
-    when (console.brand) {
-        ConsoleBrand.PlayStation -> PathMark(PlayStationPath, Modifier.size(size))
-        ConsoleBrand.Xbox -> PathMark(XboxPath, Modifier.size(size))
-        ConsoleBrand.Nintendo -> PathMark(NintendoSwitchPath, Modifier.size(size))
-        ConsoleBrand.Other -> Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(size).background(Color.White.copy(alpha = 0.16f), CircleShape),
-        ) {
-            Text(
+private fun BrandMark(console: Console, brand: Color, size: Dp) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.26f))
+            .background(Brush.verticalGradient(listOf(brand, brand.darken(0.7f)))),
+    ) {
+        val mark = Modifier.size(size * 0.58f)
+        when (console.brand) {
+            ConsoleBrand.PlayStation -> PathMark(PlayStationPath, mark)
+            ConsoleBrand.Xbox -> PathMark(XboxPath, mark)
+            ConsoleBrand.Nintendo -> PathMark(NintendoSwitchPath, mark)
+            ConsoleBrand.Other -> Text(
                 console.name.firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "?",
-                style = LauncherText.Title.copy(fontSize = (size.value * 0.48f).sp),
+                style = LauncherText.Title.copy(fontSize = (size.value * 0.44f).sp),
                 color = Color.White,
             )
         }
     }
 }
 
-private fun brandBackground(brand: ConsoleBrand): Brush = when (brand) {
-    // Each brand's colour, deeper at the left where the mark sits.
-    ConsoleBrand.PlayStation -> Brush.horizontalGradient(listOf(Color(0xFF00317A), Color(0xFF0070D1)))
-    ConsoleBrand.Xbox -> Brush.horizontalGradient(listOf(Color(0xFF0B4A0B), Color(0xFF107C10)))
-    ConsoleBrand.Nintendo -> Brush.horizontalGradient(listOf(Color(0xFF9A000C), Color(0xFFE60012)))
-    ConsoleBrand.Other -> Brush.horizontalGradient(listOf(Color(0xFF1C2433), Color(0xFF2C3A52)))
+private fun brandColor(brand: ConsoleBrand): Color = when (brand) {
+    ConsoleBrand.PlayStation -> Color(0xFF0070D1)
+    ConsoleBrand.Xbox -> Color(0xFF107C10)
+    ConsoleBrand.Nintendo -> Color(0xFFE60012)
+    ConsoleBrand.Other -> Color(0xFF5B6B8C)
 }
+
+private fun Color.darken(factor: Float): Color = Color(red * factor, green * factor, blue * factor, alpha)
 
 private fun stateColor(state: Int?): Color = when (state) {
     TvInputManager.INPUT_STATE_CONNECTED -> Color(0xFF3DDC84)
     TvInputManager.INPUT_STATE_CONNECTED_STANDBY -> Color(0xFFF5B400)
     else -> Color.White.copy(alpha = 0.35f)
+}
+
+private fun stateLabel(state: Int?): String? = when (state) {
+    TvInputManager.INPUT_STATE_CONNECTED -> "On"
+    TvInputManager.INPUT_STATE_CONNECTED_STANDBY -> "Standby"
+    else -> null
 }
 
 /** The TV's view of the input (TvInputManager.INPUT_STATE_*), kept current; null if unknown. */
