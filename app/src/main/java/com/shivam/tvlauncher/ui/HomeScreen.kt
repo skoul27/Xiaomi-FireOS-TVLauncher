@@ -305,8 +305,6 @@ fun HomeScreen(
         // One glass panel at a time: two stacked read as clutter.
         when (panels.lastOrNull()) {
             SettingsPanel.Launcher -> LauncherSettingsMenu(
-                accent = LocalAccentTheme.current,
-                remoteShortcut = remoteShortcut,
                 returnedFrom = LauncherSection.entries.firstOrNull { it.panel() == returnedFrom },
                 onOpen = { openPanel(it.panel()) },
                 onDismiss = closePanel,

@@ -9,9 +9,9 @@ import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,7 +43,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -134,11 +133,15 @@ fun SystemMenu(
         if (key != null && shortcutOff) ShortcutOffNotice(key, remoteShortcut.enableCommands)
         NavItem(
             "Hidden apps",
+            when (hiddenCount) {
+                0 -> "None hidden right now"
+                1 -> "1 app you've hidden"
+                else -> "$hiddenCount apps you've hidden"
+            },
             Modifier.focusRequester(first),
-            hint = if (hiddenCount > 0) "$hiddenCount" else null,
             onClick = onHiddenApps,
         )
-        NavItem("Launcher settings", onClick = onLauncherSettings)
+        NavItem("Launcher settings", "Theme, shortcuts and backup", onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -149,7 +152,7 @@ fun SystemMenu(
         }
         for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
         MenuDivider()
-        NavItem("About", onClick = onAbout)
+        NavItem("About", "Version and developer", onClick = onAbout)
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
@@ -188,8 +191,6 @@ enum class LauncherSection { Theme, Shortcuts, More }
 /** This launcher's own settings: three groups, each a panel of its own. */
 @Composable
 fun LauncherSettingsMenu(
-    accent: Accent,
-    remoteShortcut: RemoteShortcut,
     returnedFrom: LauncherSection?,
     onOpen: (LauncherSection) -> Unit,
     onDismiss: () -> Unit,
@@ -197,13 +198,13 @@ fun LauncherSettingsMenu(
     val rows = remember { LauncherSection.entries.associateWith { FocusRequester() } }
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Launcher settings")
-        NavItem("Theme", Modifier.focusRequester(rows.getValue(LauncherSection.Theme)), hint = accent.label) {
+        NavItem("Theme", "Accent colour, animations and console tiles", Modifier.focusRequester(rows.getValue(LauncherSection.Theme))) {
             onOpen(LauncherSection.Theme)
         }
-        NavItem("Shortcuts", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts)), hint = remoteShortcut.key?.label) {
+        NavItem("Shortcuts", "Home button and remote shortcut", Modifier.focusRequester(rows.getValue(LauncherSection.Shortcuts))) {
             onOpen(LauncherSection.Shortcuts)
         }
-        NavItem("More settings", Modifier.focusRequester(rows.getValue(LauncherSection.More)), hint = "Backup") {
+        NavItem("More settings", "Export or import a backup", Modifier.focusRequester(rows.getValue(LauncherSection.More))) {
             onOpen(LauncherSection.More)
         }
     }
@@ -218,13 +219,9 @@ fun ThemeMenu(accent: Accent, animations: Boolean, actions: LauncherActions, foc
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Theme")
         val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
-        SettingItem("Accent", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first), onStep = stepAccent) {
-            stepAccent(1)
-        }
-        SettingItem("Animations", if (animations) "On" else "Off", onStep = { actions.setAnimations(!animations) }) {
-            actions.setAnimations(!animations)
-        }
-        NavItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
+        SettingItem("Accent", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first), onStep = stepAccent)
+        SettingItem("Animations", if (animations) "On" else "Off", onStep = { actions.setAnimations(!animations) })
+        NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
     }
     LaunchedEffect(Unit) { runCatching { (if (focusConsoleTiles) tiles else first).requestFocus() } }
 }
@@ -241,11 +238,10 @@ fun ShortcutsMenu(homeRedirect: Boolean, remoteShortcut: RemoteShortcut, actions
             if (homeRedirect) "This launcher" else "Fire TV home",
             modifier = Modifier.focusRequester(first),
             onStep = { actions.setHomeRedirect(!homeRedirect) },
-        ) { actions.setHomeRedirect(!homeRedirect) }
+        )
         val key = remoteShortcut.key
         val order = listOf(null) + ColorKey.entries
-        val stepKey = { delta: Int -> actions.setShortcutKey(order.stepFrom(key, delta)) }
-        SettingItem("Remote shortcut", key?.label ?: "Off", onStep = stepKey) { stepKey(1) }
+        SettingItem("Remote shortcut", key?.label ?: "Off", onStep = { delta -> actions.setShortcutKey(order.stepFrom(key, delta)) })
         // Only worth a line when the shortcut is chosen but can't work outside the launcher.
         if (key != null && !remoteShortcut.serviceOn) {
             Text(
@@ -290,7 +286,7 @@ fun MoreMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) 
 }
 
 /**
- * One row per HDMI port; OK cycles its tile. An Other tile gets a Name row under it. Opened
+ * One row per HDMI port; left and right choose its tile. An Other tile gets a Name row under it. Opened
  * from Launcher settings, or by long-pressing a console card.
  */
 @Composable
@@ -321,17 +317,15 @@ fun ConsoleTilesMenu(
         }
         ports.forEachIndexed { index, port ->
             val tile = tiles[port.inputId] ?: PortTile(TileMode.Auto)
-            val step = { delta: Int ->
-                onSet(port, tile.copy(mode = TileMode.entries[(tile.mode.ordinal + delta).mod(TileMode.entries.size)]))
-            }
             SettingItem(
                 port.device?.let { "${port.label} · $it" } ?: port.label,
                 tile.mode.label,
                 modifier = if (index == 0) Modifier.focusRequester(first) else Modifier,
-                onStep = step,
-            ) { step(1) }
+                onStep = { delta -> onSet(port, tile.copy(mode = TileMode.entries.stepFrom(tile.mode, delta))) },
+            )
             if (tile.mode == TileMode.Other) {
-                SettingItem("      Name", tile.name.ifBlank { port.device ?: port.label }) { onRename(port) }
+                // OK opens the keyboard; no arrows, since there's nothing to step through.
+                SettingItem("      Name", tile.name.ifBlank { port.device ?: port.label }, onClick = { onRename(port) })
             }
         }
     }
@@ -455,9 +449,9 @@ fun ImportConfirmMenu(summary: String, onConfirm: () -> Unit, onCancel: () -> Un
 }
 
 /**
- * "Label        Value" on one row, with an optional colour swatch before the value. With
- * [onStep], left and right step the value back and forth (-1, +1) instead of leaving the row,
- * and triangles either side of the value say so while the row has focus.
+ * "Label        Value" on one row, with an optional colour swatch before the value. Either
+ * [onStep]: left and right step the value back and forth (-1, +1), ‹ › either side of the value
+ * say so, and OK does nothing; or [onClick]: OK acts (renaming, say) and there are no arrows.
  */
 @Composable
 private fun SettingItem(
@@ -466,7 +460,7 @@ private fun SettingItem(
     swatch: Color? = null,
     modifier: Modifier = Modifier,
     onStep: ((Int) -> Unit)? = null,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
 ) {
     val view = LocalView.current
     val stepKeys = if (onStep == null) Modifier else Modifier.onKeyEvent { event ->
@@ -488,46 +482,30 @@ private fun SettingItem(
             Box(Modifier.size(12.dp).clip(PillShape).background(swatch))
             Spacer(Modifier.width(8.dp))
         }
-        // Filled triangles, unlike the › of rows that open a panel, and only while left/right
-        // work (focused). Hidden ones keep their room, so the value doesn't shift as focus moves.
-        val arrows = if (onStep != null && focused) valueColor else Color.Transparent
-        if (onStep != null) StepArrow(pointsLeft = true, arrows, Modifier.padding(end = 12.dp))
+        // The only rows with arrows: they mean "left/right change this".
+        if (onStep != null) Text("‹", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(end = 12.dp))
         Text(value, style = LauncherText.Body, color = valueColor)
-        if (onStep != null) StepArrow(pointsLeft = false, arrows, Modifier.padding(start = 12.dp))
-    }
-}
-
-/** A small solid triangle for a value that left/right change. */
-@Composable
-private fun StepArrow(pointsLeft: Boolean, color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(width = 8.dp, height = 12.dp)) {
-        val path = Path().apply {
-            if (pointsLeft) {
-                moveTo(size.width, 0f)
-                lineTo(0f, size.height / 2f)
-                lineTo(size.width, size.height)
-            } else {
-                moveTo(0f, 0f)
-                lineTo(size.width, size.height / 2f)
-                lineTo(0f, size.height)
-            }
-            close()
-        }
-        drawPath(path, color)
+        if (onStep != null) Text("›", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(start = 12.dp))
     }
 }
 
 /**
- * A row that opens another panel: an arrow on the right says so, after an optional [hint] of
- * what's there (a count, or the panel's contents).
+ * A row that opens another panel: its name over a line saying what's in there. Two lines and
+ * no arrow, so it can't be mistaken for a value that left/right change.
  */
 @Composable
-private fun NavItem(text: String, modifier: Modifier = Modifier, hint: String? = null, onClick: () -> Unit) {
-    FocusRow(modifier = modifier.height(48.dp), onClick = onClick) { focused ->
-        val secondary = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary
-        Text(text, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary, modifier = Modifier.weight(1f))
-        if (hint != null) Text(hint, style = LauncherText.Body, color = secondary, maxLines = 1)
-        Text("›", style = LauncherText.Body, color = secondary, modifier = Modifier.padding(start = 12.dp))
+private fun NavItem(text: String, summary: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    FocusRow(modifier = modifier.height(64.dp), onClick = onClick) { focused ->
+        Column {
+            Text(text, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary)
+            Text(
+                summary,
+                style = LauncherText.Caption,
+                color = if (focused) LauncherColors.Ink.copy(alpha = 0.7f) else LauncherColors.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -612,11 +590,14 @@ private fun HiddenAppRow(app: LaunchableApp, modifier: Modifier, onClick: () -> 
     }
 }
 
-/** A menu row that turns white when focused. Dialogs are small, so plain state is fine here. */
+/**
+ * A menu row that turns white when focused. Dialogs are small, so plain state is fine here.
+ * With no [onClick] it only takes focus, and OK does nothing on it.
+ */
 @Composable
 private fun FocusRow(
     modifier: Modifier,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     content: @Composable RowScope.(focused: Boolean) -> Unit,
 ) {
@@ -627,7 +608,7 @@ private fun FocusRow(
         modifier = modifier
             .fillMaxWidth()
             .onFocusChanged { focused = it.isFocused }
-            .remoteClickable(onClick)
+            .then(if (onClick != null) Modifier.remoteClickable(onClick) else Modifier.focusable())
             .clip(ItemShape)
             .background(if (focused) LauncherColors.TextPrimary else Color.Transparent)
             .padding(horizontal = 16.dp),
