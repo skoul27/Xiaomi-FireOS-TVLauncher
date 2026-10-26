@@ -4,6 +4,7 @@ import android.text.InputFilter
 import android.text.InputType
 import android.text.format.DateFormat
 import android.util.TypedValue
+import android.view.SoundEffectConstants
 import android.view.ViewTreeObserver
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
@@ -41,11 +42,15 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
@@ -131,7 +136,6 @@ fun SystemMenu(
             onClick = onHiddenApps,
         )
         MenuItem("Launcher settings", onClick = onLauncherSettings)
-        MenuItem("About", onClick = onAbout)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -141,6 +145,8 @@ fun SystemMenu(
             )
         }
         for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
+        MenuDivider()
+        MenuItem("About", onClick = onAbout)
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
@@ -241,8 +247,8 @@ fun ConsoleTilesMenu(
     MenuDialog(onDismiss, width = 520) {
         PanelTitle("Console tiles")
         Text(
-            "Automatic shows a port only while its device announces itself over HDMI. " +
-                "Pick a tile to always show it, or Hidden to never show it.",
+            "Left and right choose each port's tile. Automatic shows a port only while its device " +
+                "announces itself over HDMI; a tile always shows it, and Hidden never does.",
             style = LauncherText.Caption,
             color = LauncherColors.TextSecondary,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
@@ -257,13 +263,15 @@ fun ConsoleTilesMenu(
         }
         ports.forEachIndexed { index, port ->
             val tile = tiles[port.inputId] ?: PortTile(TileMode.Auto)
+            val step = { delta: Int ->
+                onSet(port, tile.copy(mode = TileMode.entries[(tile.mode.ordinal + delta).mod(TileMode.entries.size)]))
+            }
             SettingItem(
                 port.device?.let { "${port.label} · $it" } ?: port.label,
                 tile.mode.label,
                 modifier = if (index == 0) Modifier.focusRequester(first) else Modifier,
-            ) {
-                onSet(port, tile.copy(mode = TileMode.entries[(tile.mode.ordinal + 1) % TileMode.entries.size]))
-            }
+                onStep = step,
+            ) { step(1) }
             if (tile.mode == TileMode.Other) {
                 SettingItem("      Name", tile.name.ifBlank { port.device ?: port.label }) { onRename(port) }
             }
@@ -386,18 +394,56 @@ fun ImportConfirmMenu(summary: String, onConfirm: () -> Unit, onCancel: () -> Un
     LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
 }
 
-/** "Label        Value" on one row, with an optional colour swatch before the value. */
+/**
+ * "Label        Value" on one row, with an optional colour swatch before the value. With
+ * [onStep], left and right step the value back and forth (-1, +1) instead of leaving the row,
+ * and arrows either side of the value say so.
+ */
 @Composable
-private fun SettingItem(label: String, value: String, swatch: Color? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    FocusRow(modifier = modifier.height(48.dp), onClick = onClick) { focused ->
+private fun SettingItem(
+    label: String,
+    value: String,
+    swatch: Color? = null,
+    modifier: Modifier = Modifier,
+    onStep: ((Int) -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    val view = LocalView.current
+    val stepKeys = if (onStep == null) Modifier else Modifier.onKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        val (delta, sound) = when (event.key) {
+            Key.DirectionLeft -> -1 to SoundEffectConstants.NAVIGATION_LEFT
+            Key.DirectionRight -> 1 to SoundEffectConstants.NAVIGATION_RIGHT
+            else -> return@onKeyEvent false
+        }
+        view.playSoundEffect(sound)
+        onStep(delta)
+        true
+    }
+    FocusRow(modifier = modifier.then(stepKeys).height(48.dp), onClick = onClick) { focused ->
         val color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary
+        val valueColor = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary
         Text(label, style = LauncherText.Body, color = color, modifier = Modifier.weight(1f))
         if (swatch != null) {
             Box(Modifier.size(12.dp).clip(PillShape).background(swatch))
             Spacer(Modifier.width(8.dp))
         }
-        Text(value, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary)
+        if (onStep != null) Text("‹", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(end = 12.dp))
+        Text(value, style = LauncherText.Body, color = valueColor)
+        if (onStep != null) Text("›", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(start = 12.dp))
     }
+}
+
+/** A thin rule between groups of items. Not focusable, so the D-pad steps straight over it. */
+@Composable
+private fun MenuDivider() {
+    Box(
+        Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Color.White.copy(alpha = 0.14f)),
+    )
 }
 
 @Composable
