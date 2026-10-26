@@ -31,7 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
@@ -176,18 +176,27 @@ private fun PathMark(path: Path, modifier: Modifier = Modifier) {
 
 /**
  * The PlayStation symbol from the PlayStation 5 logo on Wikimedia Commons
- * (File:PS5_logo.svg, path "ps_logo"), without the registered sign. The SVG fills it even-odd.
+ * (File:PS5_logo.svg, path "ps_logo"), without the registered sign. Its three pieces (the S's
+ * two halves and the P) overlap; filled even-odd as the SVG has it, the overlaps punch holes in
+ * the P, so each piece is its own path (relative starts made absolute) and they're unioned.
  */
 private val PlayStationPath: Path by lazy {
-    PathParser().parsePathString(
+    val parser = { d: String -> PathParser().parsePathString(d).toPath() }
+    val pieces = listOf(
+        // Lower-left half of the S.
         "M20.79,183C-1,176.77-4.7,163.91,5.26,156.5c9.21-6.87,24.87-12,24.87-12L94.8,121.4v26.32L48.26,16" +
-        "4.45c-8.23,3-9.49,7.16-2.8,9.35s18.78,1.57,27-1.39l22.32-8.14v23.55c-1.41.26-3,.51-4.45.75A145.7" +
-        "9,145.79,0,0,1,20.79,183Zm136.44,2.74,72.57-25.9c8.24-3,9.5-7.14,2.81-9.33s-18.78-1.57-27,1.4l-4" +
-        "8.36,17.06V141.78l2.8-.95a165.71,165.71,0,0,1,33.61-7.13c19.65-2.17,43.71.3,62.59,7.46,21.29,6.7" +
-        "4,23.69,16.67,18.28,23.51s-18.67,11.71-18.67,11.71l-98.61,35.49Zm8.49-168.57c38.21,13.19,51.16,2" +
-        "9.61,51.16,66.61,0,36.05-22.14,49.72-50.26,36.07V52.62c0-7.88-1.44-15.14-8.8-17.2-5.64-1.82-9.14" +
-        ",3.45-9.14,11.33V215l-45.12-14.4V0c19.19,3.58,47.14,12,62.16,17.13Z",
-    ).toPath().apply { fillType = PathFillType.EvenOdd }
+            "4.45c-8.23,3-9.49,7.16-2.8,9.35s18.78,1.57,27-1.39l22.32-8.14v23.55c-1.41.26-3,.51-4.45.75A145.7" +
+            "9,145.79,0,0,1,20.79,183Z",
+        // Right half of the S.
+        "M157.23,185.74l72.57-25.9c8.24-3,9.5-7.14,2.81-9.33s-18.78-1.57-27,1.4l-4" +
+            "8.36,17.06V141.78l2.8-.95a165.71,165.71,0,0,1,33.61-7.13c19.65-2.17,43.71.3,62.59,7.46,21.29,6.7" +
+            "4,23.69,16.67,18.28,23.51s-18.67,11.71-18.67,11.71l-98.61,35.49Z",
+        // The P.
+        "M165.72,17.17c38.21,13.19,51.16,2" +
+            "9.61,51.16,66.61,0,36.05-22.14,49.72-50.26,36.07V52.62c0-7.88-1.44-15.14-8.8-17.2-5.64-1.82-9.14" +
+            ",3.45-9.14,11.33V215l-45.12-14.4V0c19.19,3.58,47.14,12,62.16,17.13Z",
+    ).map(parser)
+    pieces.drop(1).fold(pieces.first()) { acc, piece -> Path.combine(PathOperation.Union, acc, piece) }
 }
 
 /** The Xbox sphere, from Simple Icons 11.0.0 (icons/xbox.svg). */

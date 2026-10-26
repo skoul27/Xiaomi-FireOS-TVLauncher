@@ -230,12 +230,13 @@ private fun Pill(now: NowPlaying, art: ImageBitmap?, lit: Boolean, tint: Color, 
             .widthIn(max = 236.dp)
             .padding(start = 6.dp, end = 18.dp),
     ) {
-        Artwork(art, 36.dp, CircleShape)
+        // A rounded-square tile, like the panel headers' icons.
+        Artwork(art, 36.dp, RoundedCornerShape(10.dp))
         Spacer(Modifier.width(12.dp))
         Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f, fill = false)) {
             Text(
                 now.title,
-                style = LauncherText.Label.copy(fontSize = 14.sp, lineHeight = 17.sp),
+                style = LauncherText.Label.copy(fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.Bold),
                 color = color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -288,26 +289,33 @@ private fun Equalizer(playing: Boolean, color: Color) {
 @Composable
 private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainControl: FocusRequester, onOpen: () -> Unit) {
     Column(Modifier.width(ExpandedWidth).padding(14.dp)) {
+        // Laid out like the panel headers: artwork tile, bold title, a line under it, a divider.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(art, 52.dp, RoundedCornerShape(12.dp))
-            Spacer(Modifier.width(12.dp))
+            Artwork(art, 54.dp, RoundedCornerShape(14.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    now.appName.uppercase() + if (now.playing) "  ·  PLAYING" else "  ·  PAUSED",
-                    style = LauncherText.Caption.copy(fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.8.sp),
-                    color = tint.brighten(),
-                    maxLines = 1,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
                     now.title,
-                    style = LauncherText.Title.copy(fontSize = 16.sp, lineHeight = 20.sp),
+                    style = LauncherText.Title.copy(fontSize = 17.sp, lineHeight = 22.sp),
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                now.subtitle?.let {
-                    Text(it, style = LauncherText.Body.copy(fontSize = 13.sp, lineHeight = 17.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    listOfNotNull(now.subtitle, now.appName).joinToString(" · "),
+                    style = LauncherText.Caption,
+                    color = LauncherColors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                    Box(Modifier.size(6.dp).background(if (now.playing) tint.brighten() else LauncherColors.TextTertiary, CircleShape))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (now.playing) "Playing" else "Paused",
+                        style = LauncherText.Caption.copy(fontSize = 12.sp, lineHeight = 15.sp),
+                        color = if (now.playing) tint.brighten() else LauncherColors.TextTertiary,
+                    )
                 }
             }
             Spacer(Modifier.width(8.dp))
@@ -318,8 +326,8 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
                 Modifier.size(36.dp).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
             ) { OpenIcon(it, size = 15.dp) }
         }
+        Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.14f)))
         if (now.durationMs > 0) {
-            Spacer(Modifier.height(12.dp))
             Progress(now, tint)
         }
         Spacer(Modifier.height(10.dp))
