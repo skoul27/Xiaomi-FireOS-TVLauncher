@@ -130,12 +130,13 @@ fun SystemMenu(
     MenuDialog(onDismiss, width = if (shortcutOff) 480 else 360) {
         PanelTitle("Settings")
         if (key != null && shortcutOff) ShortcutOffNotice(key, remoteShortcut.enableCommands)
-        MenuItem(
-            if (hiddenCount > 0) "Hidden apps \u00b7 $hiddenCount" else "Hidden apps",
+        NavItem(
+            "Hidden apps",
             Modifier.focusRequester(first),
+            hint = if (hiddenCount > 0) "$hiddenCount" else null,
             onClick = onHiddenApps,
         )
-        MenuItem("Launcher settings", onClick = onLauncherSettings)
+        NavItem("Launcher settings", onClick = onLauncherSettings)
         if (shortcuts.isEmpty()) {
             Text(
                 "No Fire OS settings screens are available right now.",
@@ -146,7 +147,7 @@ fun SystemMenu(
         }
         for (shortcut in shortcuts) MenuItem(shortcut.label) { onOpen(shortcut) }
         MenuDivider()
-        MenuItem("About", onClick = onAbout)
+        NavItem("About", onClick = onAbout)
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }
@@ -218,7 +219,7 @@ fun LauncherSettingsMenu(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
-        MenuItem("More", Modifier.focusRequester(more), onClick = onMore)
+        NavItem("More settings", Modifier.focusRequester(more), hint = "Console tiles, Backup", onClick = onMore)
     }
     LaunchedEffect(Unit) { runCatching { (if (focusMore) more else first).requestFocus() } }
 }
@@ -229,9 +230,9 @@ fun MoreMenu(focusBackup: Boolean, onConsoleTiles: () -> Unit, onBackup: () -> U
     val tiles = remember { FocusRequester() }
     val backup = remember { FocusRequester() }
     MenuDialog(onDismiss) {
-        PanelTitle("More")
-        MenuItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
-        MenuItem("Backup", Modifier.focusRequester(backup), onClick = onBackup)
+        PanelTitle("More settings")
+        NavItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
+        NavItem("Backup", Modifier.focusRequester(backup), onClick = onBackup)
     }
     LaunchedEffect(Unit) { runCatching { (if (focusBackup) backup else tiles).requestFocus() } }
 }
@@ -465,6 +466,20 @@ private fun SettingItem(
         if (onStep != null) Text("‹", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(end = 12.dp))
         Text(value, style = LauncherText.Body, color = valueColor)
         if (onStep != null) Text("›", style = LauncherText.Body, color = valueColor, modifier = Modifier.padding(start = 12.dp))
+    }
+}
+
+/**
+ * A row that opens another panel: an arrow on the right says so, after an optional [hint] of
+ * what's there (a count, or the panel's contents).
+ */
+@Composable
+private fun NavItem(text: String, modifier: Modifier = Modifier, hint: String? = null, onClick: () -> Unit) {
+    FocusRow(modifier = modifier.height(48.dp), onClick = onClick) { focused ->
+        val secondary = if (focused) LauncherColors.Ink else LauncherColors.TextSecondary
+        Text(text, style = LauncherText.Body, color = if (focused) LauncherColors.Ink else LauncherColors.TextPrimary, modifier = Modifier.weight(1f))
+        if (hint != null) Text(hint, style = LauncherText.Body, color = secondary, maxLines = 1)
+        Text("›", style = LauncherText.Body, color = secondary, modifier = Modifier.padding(start = 12.dp))
     }
 }
 
