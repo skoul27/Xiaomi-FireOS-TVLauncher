@@ -242,6 +242,7 @@ private fun MenuDialog(onDismiss: () -> Unit, width: Int = 360, content: @Compos
                 .width(width.dp)
                 .glass(PanelShape, fill = Glass.PanelFill)
                 .padding(vertical = 16.dp, horizontal = 12.dp)
+                .navigationSounds()
                 // A long-press that opened this menu keeps sending OK repeats until released.
                 // Swallow them so letting go can't trigger whichever item has focus.
                 .onPreviewKeyEvent {

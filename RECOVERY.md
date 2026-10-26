@@ -22,6 +22,10 @@ screen opening and opens this launcher over it, after a 0.4 s wait (Fire OS Sett
 through Amazon's home on the way to its own screen; that is left alone).
 
 - **Press Home**: Amazon's home flashes briefly, then this launcher (reset to the start).
+- **Restart / wake**: the same setting opens this launcher once per boot (when the service
+  first connects) and every time the screen turns on.
+- **Fire OS Settings** from the gear menu is left alone for up to 10 s while it loads (it can
+  take over a second right after a restart), then Home works normally again.
 - **To get Amazon's home back** from the TV: gear → Launcher settings → Home button →
   "Fire TV home". From a computer: turn the service off with the commands below.
 

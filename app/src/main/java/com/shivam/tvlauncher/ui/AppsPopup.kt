@@ -207,6 +207,7 @@ private fun PopupDialog(
                 }
                 .glass(PanelShape, fill = Glass.PopupFill)
                 .padding(horizontal = 22.dp, vertical = 20.dp)
+                .navigationSounds()
                 .onPreviewKeyEvent { event ->
                     val native = event.nativeKeyEvent
                     val isDown = event.type == KeyEventType.KeyDown

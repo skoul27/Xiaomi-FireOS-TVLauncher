@@ -47,6 +47,8 @@ class MainActivity : ComponentActivity() {
         }
 
         override fun openShortcut(shortcut: SystemShortcut) {
+            // Fire OS Settings opens via Amazon's home screen; don't let the service bounce it.
+            ShortcutKeyService.expectSettings()
             start(Intent(shortcut.intent), "${shortcut.label} isn't available")
         }
 

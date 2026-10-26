@@ -1,15 +1,19 @@
 package com.shivam.tvlauncher.ui
 
+import android.view.SoundEffectConstants
 import androidx.compose.foundation.focusable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
@@ -51,15 +55,47 @@ class SelectKeyState {
     }
 }
 
-/** Focusable + OK/long-press OK, with the same press/release rules everywhere. */
+/**
+ * Focusable + OK/long-press OK, with the same press/release rules everywhere. OK clicks with
+ * Fire OS's own sound (off when its Navigation sounds setting is off).
+ */
 fun Modifier.remoteClickable(onClick: () -> Unit, onLongClick: (() -> Unit)? = null): Modifier = composed {
     val keys = remember { SelectKeyState() }
+    val view = LocalView.current
     this
-        .onKeyEvent { keys.handle(it, onClick, onLongClick) }
+        .onKeyEvent { event ->
+            keys.handle(
+                event,
+                onClick = { view.playSoundEffect(SoundEffectConstants.CLICK); onClick() },
+                onLongClick = onLongClick?.let { { view.playSoundEffect(SoundEffectConstants.CLICK); it() } },
+            )
+        }
         .semantics {
             role = Role.Button
             onClick { onClick(); true }
             if (onLongClick != null) onLongClick { onLongClick(); true }
         }
         .focusable()
+}
+
+/**
+ * D-pad sounds for everything inside, put on the root of each window (screen, menus, pop-ups).
+ * Keys reach it only if nothing inside used them; it then moves focus exactly as Compose would
+ * by default, and plays Fire OS's navigation sound when focus actually moved, so nothing plays
+ * at the end of a row. Follows Fire OS's Navigation sounds setting.
+ */
+fun Modifier.navigationSounds(): Modifier = composed {
+    val view = LocalView.current
+    val focus = LocalFocusManager.current
+    onKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        val (direction, sound) = when (event.key) {
+            Key.DirectionLeft -> FocusDirection.Left to SoundEffectConstants.NAVIGATION_LEFT
+            Key.DirectionRight -> FocusDirection.Right to SoundEffectConstants.NAVIGATION_RIGHT
+            Key.DirectionUp -> FocusDirection.Up to SoundEffectConstants.NAVIGATION_UP
+            Key.DirectionDown -> FocusDirection.Down to SoundEffectConstants.NAVIGATION_DOWN
+            else -> return@onKeyEvent false
+        }
+        focus.moveFocus(direction).also { moved -> if (moved) view.playSoundEffect(sound) }
+    }
 }

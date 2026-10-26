@@ -171,6 +171,7 @@ fun HomeScreen(
                 }
                 false
             }
+            .navigationSounds()
             .onKeyEvent { event ->
             val color = ColorKey.fromKeyCode(event.nativeKeyEvent.keyCode) ?: return@onKeyEvent false
             if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
