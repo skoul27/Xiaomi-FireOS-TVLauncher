@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
@@ -26,7 +27,8 @@ import kotlinx.coroutines.launch
  * the Home key before any app sees it, and opens its own home whatever the preferred Home app
  * is. So when that home screen comes up, this launcher is opened over it (a brief flash). With
  * the same setting on, it also opens the launcher once after each boot (the service is often
- * bound after Amazon's home has already appeared) and whenever the screen wakes.
+ * bound after Amazon's home has already appeared), after the process dies while the launcher is
+ * in front (an update, a crash, a low-memory kill), and whenever the screen wakes.
  *
  * Its config (res/xml/shortcut_key_service.xml) asks for key filtering and for window changes in
  * Amazon's launcher only, never window content. It looks at the key code and at which Amazon
@@ -60,7 +62,15 @@ class ShortcutKeyService : AccessibilityService() {
             }
         }
         scope.launch {
-            if (isFirstConnectThisBoot() && store.prefs.first().homeRedirect) bringLauncherToFront(home = true)
+            val state = getSharedPreferences(StateFile, MODE_PRIVATE)
+            // The process (and so this service) died while one of our screens was in front: Amazon's
+            // home took its place before we were back to see it, and Home pressed there changes
+            // no window, so nothing would ever bring the launcher back.
+            val diedInFront = state.getBoolean(OursInFront, false)
+            val firstThisBoot = isFirstConnectThisBoot(state)
+            if ((firstThisBoot || diedInFront) && !MainActivity.inFront && store.prefs.first().homeRedirect) {
+                bringLauncherToFront(home = true)
+            }
         }
         ContextCompat.registerReceiver(this, screenOn, IntentFilter(Intent.ACTION_SCREEN_ON), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
@@ -69,10 +79,9 @@ class ShortcutKeyService : AccessibilityService() {
      * True once per boot. The service also reconnects within a boot (after an update, or if the
      * process is killed), and those mustn't pull the launcher over whatever is on screen.
      */
-    private fun isFirstConnectThisBoot(): Boolean {
+    private fun isFirstConnectThisBoot(state: SharedPreferences): Boolean {
         val boot = Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1)
         if (boot < 0) return false
-        val state = getSharedPreferences("service", MODE_PRIVATE)
         if (state.getInt(HandledBoot, -1) == boot) return false
         state.edit().putInt(HandledBoot, boot).apply()
         return true
@@ -106,28 +115,28 @@ class ShortcutKeyService : AccessibilityService() {
     /**
      * The config limits events to window changes in Amazon's launcher. Its home screen is
      * replaced after a short wait, because Fire OS Settings passes through that home on the way
-     * to its own screen (MainSettingsActivity, also in Amazon's launcher): any other screen of
-     * that app turning up within the wait cancels the redirect. Right after a boot that screen
-     * can take well over a second, so while the launcher is opening Settings ([expectSettings])
-     * the home screen is left alone until Settings shows up.
+     * to its own screen (MainSettingsActivity, also in Amazon's launcher): a settings screen of
+     * that app turning up within the wait cancels the redirect. Its other screens don't, so one
+     * that pops up by itself over the home screen can't keep Home on Amazon's. Right after a
+     * boot Settings can take well over a second, so when the launcher has just opened it
+     * ([expectSettings]) the next home screen is left alone, once.
      */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val name = event.className?.toString() ?: return
         when {
-            name == AmazonHome -> if (homeRedirect && SystemClock.elapsedRealtime() > settingsExpectedUntil) {
-                pendingRedirect?.cancel()
-                pendingRedirect = scope.launch {
-                    delay(RedirectDelayMs)
-                    bringLauncherToFront(home = true)
+            name == AmazonHome -> {
+                val passingToSettings = SystemClock.elapsedRealtime() < settingsExpectedUntil
+                settingsExpectedUntil = 0L
+                if (homeRedirect && !passingToSettings) {
+                    pendingRedirect?.cancel()
+                    pendingRedirect = scope.launch {
+                        delay(RedirectDelayMs)
+                        bringLauncherToFront(home = true)
+                    }
                 }
             }
-            // Another of its activities; dialogs and views (android.*) don't count.
-            name.startsWith("com.amazon.tv.launcher.") -> {
-                pendingRedirect?.cancel()
-                // Settings is up, so Home from there goes back to this launcher again.
-                settingsExpectedUntil = 0L
-            }
+            name.startsWith("com.amazon.tv.launcher.") && name.contains("Settings") -> pendingRedirect?.cancel()
         }
     }
 
@@ -137,13 +146,23 @@ class ShortcutKeyService : AccessibilityService() {
         private const val AmazonHome = "com.amazon.tv.launcher.ui.HomeActivity_vNext"
         private const val RedirectDelayMs = 400L
         private const val SettingsWaitMs = 10_000L
+        private const val StateFile = "service"
         private const val HandledBoot = "handled_boot"
+        private const val OursInFront = "ours_in_front"
 
         /** Same process as the launcher, so a plain field is enough to pass this along. */
         @Volatile
         private var settingsExpectedUntil = 0L
 
-        /** Called by the launcher just before it opens a Fire OS settings screen. */
+        /**
+         * Our activities call this as they resume (true) and pause (false). On disk, because it
+         * matters exactly when the process has died without pausing.
+         */
+        fun recordFront(context: Context, front: Boolean) {
+            context.getSharedPreferences(StateFile, MODE_PRIVATE).edit().putBoolean(OursInFront, front).apply()
+        }
+
+        /** Called by the launcher just before it opens Fire OS Settings (via Amazon's home screen). */
         fun expectSettings() {
             settingsExpectedUntil = SystemClock.elapsedRealtime() + SettingsWaitMs
         }

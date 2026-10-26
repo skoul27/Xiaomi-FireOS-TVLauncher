@@ -78,6 +78,14 @@ fun Modifier.remoteClickable(onClick: () -> Unit, onLongClick: (() -> Unit)? = n
         .focusable()
 }
 
+/** Fire OS's navigation sound for each D-pad direction. */
+private val DpadMoves = mapOf(
+    Key.DirectionLeft to (FocusDirection.Left to SoundEffectConstants.NAVIGATION_LEFT),
+    Key.DirectionRight to (FocusDirection.Right to SoundEffectConstants.NAVIGATION_RIGHT),
+    Key.DirectionUp to (FocusDirection.Up to SoundEffectConstants.NAVIGATION_UP),
+    Key.DirectionDown to (FocusDirection.Down to SoundEffectConstants.NAVIGATION_DOWN),
+)
+
 /**
  * D-pad sounds for everything inside, put on the root of each window (screen, menus, pop-ups).
  * Keys reach it only if nothing inside used them; it then moves focus exactly as Compose would
@@ -89,13 +97,19 @@ fun Modifier.navigationSounds(): Modifier = composed {
     val focus = LocalFocusManager.current
     onKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-        val (direction, sound) = when (event.key) {
-            Key.DirectionLeft -> FocusDirection.Left to SoundEffectConstants.NAVIGATION_LEFT
-            Key.DirectionRight -> FocusDirection.Right to SoundEffectConstants.NAVIGATION_RIGHT
-            Key.DirectionUp -> FocusDirection.Up to SoundEffectConstants.NAVIGATION_UP
-            Key.DirectionDown -> FocusDirection.Down to SoundEffectConstants.NAVIGATION_DOWN
-            else -> return@onKeyEvent false
-        }
+        val (direction, sound) = DpadMoves[event.key] ?: return@onKeyEvent false
         focus.moveFocus(direction).also { moved -> if (moved) view.playSoundEffect(sound) }
+    }
+}
+
+/**
+ * Takes over D-pad presses in [key]'s direction from inside: [onPress] moves focus itself and
+ * returns true, or returns false to leave the press to the default search. Plays the same sound.
+ */
+fun Modifier.onDpad(key: Key, onPress: () -> Boolean): Modifier = composed {
+    val view = LocalView.current
+    onKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown || event.key != key) return@onKeyEvent false
+        onPress().also { handled -> if (handled) view.playSoundEffect(DpadMoves.getValue(key).second) }
     }
 }

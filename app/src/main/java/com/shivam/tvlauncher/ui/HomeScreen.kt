@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -120,7 +121,7 @@ private enum class AppsPopup { All, Hidden }
  * leave; the top bar floats top-right over the hero's empty corner. Both sections use one tile
  * size and one header style, so their columns line up.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(
     ui: LauncherUi?,
@@ -149,6 +150,18 @@ fun HomeScreen(
     val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
     val focusDone = remember { { pendingFocus = null } }
     val showInHero = remember { { app: LaunchableApp -> hero.app = app } }
+    // The My Apps tile focused last, to come back to from the top bar or the Consoles row.
+    var lastPinned by remember { mutableStateOf<String?>(null) }
+    val pinnedFocused = remember { { app: LaunchableApp -> hero.app = app; lastPinned = app.packageName } }
+    // Compose's own search sees the row as one block the width of the screen, and can pass over
+    // it to the Consoles row, so entering it from above or below is done by hand: the tile left
+    // last (or the first), scrolled into view. False with no pins, leaving the press to the default.
+    val enterMyApps: () -> Boolean = {
+        val pins = ui?.pinned.orEmpty()
+        val target = pins.firstOrNull { it.packageName == lastPinned } ?: pins.firstOrNull()
+        if (target != null) pendingFocus = MenuTarget(target.packageName, RowKind.Pinned)
+        target != null
+    }
     val hasPins = ui?.pinned?.isNotEmpty() == true
     // My Apps' first tile, or the All apps button when there are no pins.
     val focusStart = remember(hasPins) {
@@ -202,7 +215,7 @@ fun HomeScreen(
                 ui.pinned.isEmpty() -> EmptyMyAppsHint()
                 else -> CompositionLocalProvider(LocalBringIntoViewSpec provides rowScrollSpec) {
                     AppRow(
-                        ui.pinned, RowKind.Pinned, TileSize.Standard, actions, openMenu, showInHero,
+                        ui.pinned, RowKind.Pinned, TileSize.Standard, actions, openMenu, pinnedFocused,
                         firstItemFocus = initialFocus,
                         pendingFocus = pendingFocus?.packageName,
                         onPendingFocusDone = focusDone,
@@ -213,20 +226,26 @@ fun HomeScreen(
             Spacer(Modifier.height(SectionGap))
             SectionHeader("Consoles")
             Spacer(Modifier.height(HeaderGap))
-            ConsolesRow(onOpen = actions::openConsole)
+            ConsolesRow(onOpen = actions::openConsole, modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps))
             Spacer(Modifier.height(SafeArea.Vertical))
         }
 
         TopBar(
             buttons = {
-                RoundIconButton({ if (ui != null) popup = AppsPopup.All }, Modifier.focusRequester(allAppsButton)) {
+                // Ends of the bar: nothing beyond them, rather than a diagonal jump to a tile.
+                RoundIconButton(
+                    { if (ui != null) popup = AppsPopup.All },
+                    Modifier.focusRequester(allAppsButton).focusProperties { left = FocusRequester.Cancel },
+                ) {
                     GridIcon(it, size = 18.dp)
                 }
                 RoundIconButton(actions::openCast) { CastIcon(it, size = 21.dp) }
                 NetworkButton(actions::openWifiSettings)
-                RoundIconButton({ showSystem = true }) { GearIcon(it) }
+                RoundIconButton({ showSystem = true }, Modifier.focusProperties { right = FocusRequester.Cancel }) { GearIcon(it) }
             },
-            modifier = Modifier.padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal),
+            modifier = Modifier
+                .padding(top = SafeArea.Vertical, start = SafeArea.Horizontal, end = SafeArea.Horizontal)
+                .onDpad(Key.DirectionDown, enterMyApps),
         )
 
         if (ui != null) {
@@ -329,13 +348,24 @@ private fun OpenVeil(opens: Int) {
  * A plain Row, not lazy: there are only a few consoles, and a Row doesn't clip their glow, so it
  * needs no bleed.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun ConsolesRow(onOpen: (Console) -> Unit) {
+private fun ConsolesRow(onOpen: (Console) -> Unit, modifier: Modifier = Modifier) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(TileSize.Console.gap),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
+        modifier = modifier.fillMaxWidth().padding(horizontal = SafeArea.Horizontal),
     ) {
-        for (console in Consoles) ConsoleTile(console, onClick = { onOpen(console) })
+        // Left and right stay in the row instead of jumping up to a tile or the top bar.
+        Consoles.forEachIndexed { index, console ->
+            ConsoleTile(
+                console,
+                onClick = { onOpen(console) },
+                modifier = Modifier.focusProperties {
+                    if (index == 0) left = FocusRequester.Cancel
+                    if (index == Consoles.lastIndex) right = FocusRequester.Cancel
+                },
+            )
+        }
     }
 }
 

@@ -48,7 +48,8 @@ class MainActivity : ComponentActivity() {
 
         override fun openShortcut(shortcut: SystemShortcut) {
             // Fire OS Settings opens via Amazon's home screen; don't let the service bounce it.
-            ShortcutKeyService.expectSettings()
+            // The other screens open directly, and must not leave Home waiting on it.
+            if (shortcut.intent.action == Settings.ACTION_SETTINGS) ShortcutKeyService.expectSettings()
             start(Intent(shortcut.intent), "${shortcut.label} isn't available")
         }
 
@@ -126,6 +127,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         inFront = true
+        ShortcutKeyService.recordFront(this, true)
         // Picks up installs/uninstalls that happened while we were in the background.
         viewModel.refresh()
         shortcutService = readShortcutService()
@@ -133,6 +135,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         inFront = false
+        ShortcutKeyService.recordFront(this, false)
         super.onPause()
     }
 

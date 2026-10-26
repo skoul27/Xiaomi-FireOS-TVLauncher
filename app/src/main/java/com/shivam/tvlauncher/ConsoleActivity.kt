@@ -66,6 +66,16 @@ class ConsoleActivity : Activity() {
         tvView.tune(inputId, TvContract.buildChannelUriForPassthroughInput(inputId))
     }
 
+    override fun onResume() {
+        super.onResume()
+        ShortcutKeyService.recordFront(this, true)
+    }
+
+    override fun onPause() {
+        ShortcutKeyService.recordFront(this, false)
+        super.onPause()
+    }
+
     // Releases the input as soon as we're covered, so it never keeps playing behind another app.
     override fun onStop() {
         tvView.reset()

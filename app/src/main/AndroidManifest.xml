@@ -7,7 +7,7 @@
     <!-- Read-only connectivity state for the top bar's network indicator. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Only for the clock's weather line (Open-Meteo), and only once a place is set in Weather.kt. -->
+    <!-- Only for the clock's weather line: the place from ipwho.is, the weather from Open-Meteo. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Lets the long-press menu open the system uninstall dialog. -->

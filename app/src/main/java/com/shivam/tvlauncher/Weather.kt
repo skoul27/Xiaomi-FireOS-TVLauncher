@@ -5,53 +5,91 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.produceState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
 
-/** Where the weather is for. Fixed coordinates, so no location lookup ever leaves the TV. */
+/** Where the weather is for. */
 @Immutable
 class WeatherPlace(val latitude: Double, val longitude: Double)
 
-/** Set to this TV's city to turn the weather line on; null keeps the launcher offline. */
+/**
+ * Set to fixed coordinates to skip the IP lookup below, so the only request is to Open-Meteo.
+ * Null finds the place from the TV's public IP.
+ */
 val WeatherLocation: WeatherPlace? = null
+
+/**
+ * The place from ipwho.is (free, no account), which sees the TV's public IP and answers with the
+ * city it maps to. Looked up at most once a day per launcher process; kept in memory only.
+ */
+private object IpPlace {
+    private val lock = Mutex()
+    private var place: WeatherPlace? = null
+    private var foundAt = 0L
+
+    suspend fun get(): WeatherPlace? = lock.withLock {
+        val now = System.currentTimeMillis()
+        if (place == null || now - foundAt > 24 * 60 * 60 * 1000L) {
+            runCatching { lookUp() }.getOrNull()?.let {
+                place = it
+                foundAt = now
+            }
+        }
+        place
+    }
+
+    private fun lookUp(): WeatherPlace? {
+        val json = JSONObject(httpGet(URL("https://ipwho.is/?fields=success,latitude,longitude")))
+        if (!json.optBoolean("success")) return null
+        return WeatherPlace(json.getDouble("latitude"), json.getDouble("longitude"))
+    }
+}
 
 @Immutable
 class Weather(val temperature: Int, val summary: String)
 
 /**
  * The current weather from Open-Meteo (free, no account), refreshed every 30 minutes; null until
- * the first answer, and whenever the network or the service is unavailable.
+ * the first answer, and whenever the network or the services are unavailable. Retries sooner
+ * while it has nothing to show, since the TV may still be joining Wi-Fi after a boot.
  */
 @Composable
 fun rememberWeather(): Weather? = produceState<Weather?>(null) {
-    val place = WeatherLocation ?: return@produceState
     while (true) {
-        value = withContext(Dispatchers.IO) { runCatching { fetchWeather(place) }.getOrNull() } ?: value
-        delay(30 * 60 * 1000L)
+        value = withContext(Dispatchers.IO) {
+            val place = WeatherLocation ?: IpPlace.get()
+            place?.let { runCatching { fetchWeather(it) }.getOrNull() }
+        } ?: value
+        delay(if (value == null) 60 * 1000L else 30 * 60 * 1000L)
     }
 }.value
+
+private fun httpGet(url: URL): String {
+    val connection = url.openConnection() as HttpURLConnection
+    try {
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
+        return connection.inputStream.bufferedReader().use { it.readText() }
+    } finally {
+        connection.disconnect()
+    }
+}
 
 private fun fetchWeather(place: WeatherPlace): Weather {
     val url = URL(
         "https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}" +
             "&current=temperature_2m,weather_code",
     )
-    val connection = url.openConnection() as HttpURLConnection
-    try {
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 10_000
-        val body = connection.inputStream.bufferedReader().use { it.readText() }
-        val current = JSONObject(body).getJSONObject("current")
-        return Weather(
-            temperature = current.getDouble("temperature_2m").roundToInt(),
-            summary = describe(current.getInt("weather_code")),
-        )
-    } finally {
-        connection.disconnect()
-    }
+    val current = JSONObject(httpGet(url)).getJSONObject("current")
+    return Weather(
+        temperature = current.getDouble("temperature_2m").roundToInt(),
+        summary = describe(current.getInt("weather_code")),
+    )
 }
 
 /** WMO weather codes, as Open-Meteo reports them, in a few words. */

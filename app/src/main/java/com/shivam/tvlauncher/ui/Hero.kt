@@ -29,7 +29,7 @@ class HeroState {
 }
 
 /**
- * The time, large, over the date and (when a place is set) the weather. The focused app only
+ * The time, large, over the date and (once it loads) the weather. The focused app only
  * tints the backdrop behind it; its name is already under its tile. Only this recomposes when the
  * minute ticks.
  */

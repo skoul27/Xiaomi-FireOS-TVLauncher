@@ -24,8 +24,12 @@ through Amazon's home on the way to its own screen; that is left alone).
 - **Press Home**: Amazon's home flashes briefly, then this launcher (reset to the start).
 - **Restart / wake**: the same setting opens this launcher once per boot (when the service
   first connects) and every time the screen turns on.
-- **Fire OS Settings** from the gear menu is left alone for up to 10 s while it loads (it can
-  take over a second right after a restart), then Home works normally again.
+- **Launcher process dies while in front** (an update, a crash, a low-memory kill): Amazon's home
+  takes its place before the service is back, and Home pressed there changes nothing the
+  service can see. The launcher records whether it is in front, so the service reopens it when
+  it reconnects.
+- **Fire OS Settings** from the gear menu: the one pass through Amazon's home on the way there
+  (within 10 s) is left alone, since it can take over a second right after a restart.
 - **To get Amazon's home back** from the TV: gear → Launcher settings → Home button →
   "Fire TV home". From a computer: turn the service off with the commands below.
 
