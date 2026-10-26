@@ -52,3 +52,28 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
   "Allow USB debugging?" prompt.
 - The release build is also signed with the debug key (see `app/build.gradle.kts`),
   so release and debug can install over each other.
+
+## Before going public (not yet: owner's call)
+
+All development happens in this private repo for now. A public version is planned
+for later, as a separate repo with fresh history; this one stays private. Decisions
+already made (2026-10-26), and what needs doing first:
+
+- **History:** the old commits are authored with the owner's Gmail address. Publish
+  a fresh copy (no history) rather than making this repo public.
+- **Repo:** a new public repo, provisionally `Xiaomi-FireOS-TVLauncher-PROD`.
+- **License:** MIT, copyright skoul27.
+- **PlayStation logo:** Sony's trademark (`ui/ConsoleTile.kt`, traced from Wikimedia).
+  The public version drops the PS5 card and instead shows every HDMI port, found at
+  runtime through `TvInputManager` (TYPE_HDMI inputs with no parent; a child input
+  is the HDMI-CEC device on that port and can name the card). The private build
+  keeps the PS5 card.
+- **Package ID:** rename to `com.skoul27.tvlauncher` in the public version, so it can
+  sit beside this personal app on the same TV (same ID + different key = can't install).
+- **Release key:** a new release keystore for public APKs on GitHub Releases, kept out
+  of git (`keystore.properties`, git-ignored) and backed up to Drive. Release builds
+  fall back to the debug key when the file is absent, so anyone can still build.
+- **Docs:** a README (what it is, screenshots, sideloading, the Fire OS Home-button
+  caveat), and `RECOVERY.md` rewritten for general users: `<TV-IP>` instead of the
+  real IP, and without the dated notes about this TV.
+- The developer line in Launcher settings (`skoul27 · koul@duck.com`) stays.
