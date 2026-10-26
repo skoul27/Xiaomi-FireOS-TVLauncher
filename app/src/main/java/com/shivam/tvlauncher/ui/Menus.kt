@@ -186,12 +186,14 @@ fun LauncherSettingsMenu(
     animations: Boolean,
     homeRedirect: Boolean,
     remoteShortcut: RemoteShortcut,
-    backupMessage: String?,
     actions: LauncherActions,
-    onConsoleTiles: () -> Unit,
+    /** Back from More: focus lands on More again, not the first row. */
+    focusMore: Boolean,
+    onMore: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
+    val more = remember { FocusRequester() }
     MenuDialog(onDismiss, width = 460) {
         PanelTitle("Launcher settings")
         SettingItem("Theme", accent.label, swatch = accent.color, modifier = Modifier.focusRequester(first)) {
@@ -216,12 +218,42 @@ fun LauncherSettingsMenu(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
-        MenuItem("Console tiles", onClick = onConsoleTiles)
-        MenuItem("Export backup", onClick = actions::exportBackup)
+        MenuItem("More", Modifier.focusRequester(more), onClick = onMore)
+    }
+    LaunchedEffect(Unit) { runCatching { (if (focusMore) more else first).requestFocus() } }
+}
+
+/** Less-used settings, a level down from Launcher settings. */
+@Composable
+fun MoreMenu(focusBackup: Boolean, onConsoleTiles: () -> Unit, onBackup: () -> Unit, onDismiss: () -> Unit) {
+    val tiles = remember { FocusRequester() }
+    val backup = remember { FocusRequester() }
+    MenuDialog(onDismiss) {
+        PanelTitle("More")
+        MenuItem("Console tiles", Modifier.focusRequester(tiles), onClick = onConsoleTiles)
+        MenuItem("Backup", Modifier.focusRequester(backup), onClick = onBackup)
+    }
+    LaunchedEffect(Unit) { runCatching { (if (focusBackup) backup else tiles).requestFocus() } }
+}
+
+/** Export or import the setup file, with the result of the last one underneath. */
+@Composable
+fun BackupMenu(message: String?, actions: LauncherActions, onDismiss: () -> Unit) {
+    val first = remember { FocusRequester() }
+    MenuDialog(onDismiss, width = 460) {
+        PanelTitle("Backup")
+        Text(
+            "Your My Apps, hidden apps, console tiles, theme and settings, as one file on this TV. " +
+                "Copying it to or from a computer needs adb.",
+            style = LauncherText.Caption,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+        )
+        MenuItem("Export backup", Modifier.focusRequester(first), onClick = actions::exportBackup)
         MenuItem("Import backup", onClick = actions::importBackup)
-        if (backupMessage != null) {
+        if (message != null) {
             Text(
-                backupMessage,
+                message,
                 style = LauncherText.Caption,
                 color = LauncherColors.TextPrimary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -354,8 +386,10 @@ fun AboutMenu(onDismiss: () -> Unit) {
         AboutRow("Installed", info?.let { formatDate(it.lastUpdateTime) } ?: "Unknown")
         AboutRow("Developer", "Shivam Koul")
         AboutRow("Email", "koul@duck.com")
-        Spacer(Modifier.height(8.dp))
-        MenuItem("Close", Modifier.focusRequester(close), onClick = onDismiss)
+        Spacer(Modifier.height(12.dp))
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+            MenuItem("Close", Modifier.width(180.dp).focusRequester(close), centered = true, onClick = onDismiss)
+        }
     }
     LaunchedEffect(Unit) { runCatching { close.requestFocus() } }
 }
@@ -478,8 +512,12 @@ private fun PanelTitle(text: String) {
 }
 
 @Composable
-private fun MenuItem(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    FocusRow(modifier = modifier.height(48.dp), onClick = { if (enabled) onClick() }) { focused ->
+private fun MenuItem(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, centered: Boolean = false, onClick: () -> Unit) {
+    FocusRow(
+        modifier = modifier.height(48.dp),
+        horizontalArrangement = if (centered) Arrangement.Center else Arrangement.Start,
+        onClick = { if (enabled) onClick() },
+    ) { focused ->
         Text(
             text,
             style = LauncherText.Body,
@@ -513,9 +551,15 @@ private fun HiddenAppRow(app: LaunchableApp, modifier: Modifier, onClick: () -> 
 
 /** A menu row that turns white when focused. Dialogs are small, so plain state is fine here. */
 @Composable
-private fun FocusRow(modifier: Modifier, onClick: () -> Unit, content: @Composable RowScope.(focused: Boolean) -> Unit) {
+private fun FocusRow(
+    modifier: Modifier,
+    onClick: () -> Unit,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    content: @Composable RowScope.(focused: Boolean) -> Unit,
+) {
     var focused by remember { mutableStateOf(false) }
     Row(
+        horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()

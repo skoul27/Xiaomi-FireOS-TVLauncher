@@ -120,6 +120,8 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
+private enum class SettingsPanel { Launcher, More, ConsoleTiles, Backup }
+
 /**
  * One screen, no page scroll: the hero fills whatever the My Apps and Consoles sections below it
  * leave; the top bar floats top-right over the hero's empty corner. Both sections use one tile
@@ -150,8 +152,12 @@ fun HomeScreen(
     var menu by remember { mutableStateOf<MenuTarget?>(null) }
     var popup by remember { mutableStateOf<AppsPopup?>(null) }
     var showSystem by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showConsoleTiles by remember { mutableStateOf(false) }
+    // Launcher settings and the panels under it, newest last. Only the newest shows; Back closes it
+    // and returns to the one before, with focus on the item that opened it.
+    var panels by remember { mutableStateOf(emptyList<SettingsPanel>()) }
+    var returnedFrom by remember { mutableStateOf<SettingsPanel?>(null) }
+    val openPanel = { panel: SettingsPanel -> returnedFrom = null; panels = panels + panel }
+    val closePanel = { returnedFrom = panels.lastOrNull(); panels = panels.dropLast(1) }
     var renaming by remember { mutableStateOf<HdmiPort?>(null) }
     var showAbout by remember { mutableStateOf(false) }
     val consoles = remember(ports, consoleTiles) { consolesFor(ports, consoleTiles) }
@@ -241,7 +247,7 @@ fun HomeScreen(
                 ConsolesRow(
                     consoles,
                     onOpen = actions::openConsole,
-                    onLongPress = { showConsoleTiles = true },
+                    onLongPress = { panels = listOf(SettingsPanel.ConsoleTiles) },
                     modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps),
                 )
             }
@@ -284,52 +290,65 @@ fun HomeScreen(
                 hiddenCount = ui?.hidden?.size ?: 0,
                 onHiddenApps = { showSystem = false; if (ui != null) popup = AppsPopup.Hidden },
                 onOpen = { showSystem = false; actions.openShortcut(it) },
-                onLauncherSettings = { showSystem = false; showSettings = true },
+                onLauncherSettings = { showSystem = false; panels = listOf(SettingsPanel.Launcher) },
                 onAbout = { showSystem = false; showAbout = true },
                 onDismiss = { showSystem = false },
             )
         }
         if (showAbout) AboutMenu(onDismiss = { showAbout = false })
-        // Out of sight while Console tiles is open over it: two glass panels stacked read as clutter.
-        if (showSettings && !showConsoleTiles) {
-            LauncherSettingsMenu(
+        // One glass panel at a time: two stacked read as clutter.
+        when (panels.lastOrNull()) {
+            SettingsPanel.Launcher -> LauncherSettingsMenu(
                 accent = LocalAccentTheme.current,
                 animations = animate,
                 homeRedirect = homeRedirect,
                 remoteShortcut = remoteShortcut,
-                backupMessage = (backup as? BackupState.Message)?.text,
                 actions = actions,
-                onConsoleTiles = { showConsoleTiles = true },
-                onDismiss = {
-                    showSettings = false
-                    actions.dismissBackup()
-                },
+                focusMore = returnedFrom == SettingsPanel.More,
+                onMore = { openPanel(SettingsPanel.More) },
+                onDismiss = closePanel,
             )
-            (backup as? BackupState.ConfirmImport)?.let { pending ->
-                ImportConfirmMenu(pending.summary, onConfirm = actions::confirmImport, onCancel = actions::dismissBackup)
-            }
-        }
-        // Closing it goes back to Launcher settings when it was opened from there.
-        if (showConsoleTiles) {
-            ConsoleTilesMenu(
-                ports,
-                consoleTiles,
-                onSet = { port, tile -> actions.setConsoleTile(port.inputId, tile) },
-                onRename = { renaming = it },
-                onDismiss = { showConsoleTiles = false },
+            SettingsPanel.More -> MoreMenu(
+                focusBackup = returnedFrom == SettingsPanel.Backup,
+                onConsoleTiles = { openPanel(SettingsPanel.ConsoleTiles) },
+                onBackup = { openPanel(SettingsPanel.Backup) },
+                onDismiss = closePanel,
             )
-            renaming?.let { port ->
-                val tile = consoleTiles[port.inputId] ?: PortTile(TileMode.Other)
-                RenameTileMenu(
-                    port,
-                    initial = tile.name,
-                    onSave = { name ->
-                        actions.setConsoleTile(port.inputId, tile.copy(name = name))
-                        renaming = null
-                    },
-                    onDismiss = { renaming = null },
+            SettingsPanel.ConsoleTiles -> {
+                ConsoleTilesMenu(
+                    ports,
+                    consoleTiles,
+                    onSet = { port, tile -> actions.setConsoleTile(port.inputId, tile) },
+                    onRename = { renaming = it },
+                    onDismiss = closePanel,
                 )
+                renaming?.let { port ->
+                    val tile = consoleTiles[port.inputId] ?: PortTile(TileMode.Other)
+                    RenameTileMenu(
+                        port,
+                        initial = tile.name,
+                        onSave = { name ->
+                            actions.setConsoleTile(port.inputId, tile.copy(name = name))
+                            renaming = null
+                        },
+                        onDismiss = { renaming = null },
+                    )
+                }
             }
+            SettingsPanel.Backup -> {
+                BackupMenu(
+                    message = (backup as? BackupState.Message)?.text,
+                    actions = actions,
+                    onDismiss = {
+                        actions.dismissBackup()
+                        closePanel()
+                    },
+                )
+                (backup as? BackupState.ConfirmImport)?.let { pending ->
+                    ImportConfirmMenu(pending.summary, onConfirm = actions::confirmImport, onCancel = actions::dismissBackup)
+                }
+            }
+            null -> {}
         }
 
         OpenVeil(opens)
@@ -337,7 +356,8 @@ fun HomeScreen(
 
     // The status can change while we're in front (a package update briefly drops the service),
     // so read it fresh whenever a panel that shows it opens.
-    LaunchedEffect(showSystem, showSettings) { if (showSystem || showSettings) actions.recheckShortcut() }
+    val launcherSettingsOpen = panels.lastOrNull() == SettingsPanel.Launcher
+    LaunchedEffect(showSystem, launcherSettingsOpen) { if (showSystem || launcherSettingsOpen) actions.recheckShortcut() }
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
     BackHandler { focusStart() }
@@ -349,8 +369,8 @@ fun HomeScreen(
         menu = null
         popup = null
         showSystem = false
-        showSettings = false
-        showConsoleTiles = false
+        if (panels.lastOrNull() == SettingsPanel.Backup) actions.dismissBackup()
+        panels = emptyList()
         renaming = null
         showAbout = false
         // A closing dialog hands focus back to our window; wait for that, or it overrides us.

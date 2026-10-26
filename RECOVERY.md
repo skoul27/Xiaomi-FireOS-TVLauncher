@@ -87,13 +87,13 @@ remote shortcut can be saved as one JSON file. (Backups from before console tile
 version 1, still import; they leave your current console tiles as they are.) Fire OS doesn't let adb into the app's folder, and the launcher has no
 storage permission, so the file goes through a small bridge in the launcher that only answers adb.
 
-Back up (on the TV: gear → Launcher settings → Export backup, then on the computer):
+Back up (on the TV: gear → Launcher settings → More → Backup → Export backup, then on the computer):
 
 ```sh
 adb shell content read --uri content://com.shivam.tvlauncher.backup/launcher-backup.json > launcher-backup.json
 ```
 
-Restore (on the computer, then on the TV: gear → Launcher settings → Import backup):
+Restore (on the computer, then on the TV: gear → Launcher settings → More → Backup → Import backup):
 
 ```sh
 adb shell content write --uri content://com.shivam.tvlauncher.backup/launcher-backup.json < launcher-backup.json
