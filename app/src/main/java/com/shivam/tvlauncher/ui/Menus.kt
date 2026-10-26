@@ -74,37 +74,47 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-enum class MenuAction { TogglePin, MoveLeft, MoveRight, Hide, AppInfo, Uninstall }
+enum class MenuAction { TogglePin, Move, Hide, AppInfo, Uninstall }
+
+/** A tile's two menus: long-press OK arranges it, the remote's Menu (≡) button manages the app. */
+enum class AppMenuKind { Arrange, Manage }
 
 /**
- * Long-press menu for one tile. Stays open after Move left/right so the tile can be nudged
- * several places in a row; every other action closes it.
+ * One tile's menu. Arrange: add or remove from My Apps, Move (where order is the user's), Hide.
+ * Manage: App info and Uninstall. Every action closes it.
  */
 @Composable
 fun AppMenu(
     app: LaunchableApp,
     isPinned: Boolean,
-    canMoveLeft: Boolean,
-    canMoveRight: Boolean,
+    kind: AppMenuKind,
+    /** False where order isn't the user's (the All apps list is alphabetical) or nothing to swap with. */
+    canMove: Boolean,
     onAction: (MenuAction) -> Unit,
-    /** False where order isn't the user's (the All apps list is alphabetical). */
-    showMove: Boolean = true,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
     MenuDialog(onDismiss) {
         PanelTitle(app.label)
-        MenuItem(if (isPinned) "Remove from My Apps" else "Add to My Apps", Modifier.focusRequester(first)) {
-            onAction(MenuAction.TogglePin)
+        when (kind) {
+            AppMenuKind.Arrange -> {
+                MenuItem(if (isPinned) "Remove from My Apps" else "Add to My Apps", Modifier.focusRequester(first)) {
+                    onAction(MenuAction.TogglePin)
+                }
+                if (canMove) MenuItem("Move") { onAction(MenuAction.Move) }
+                MenuItem("Hide") { onAction(MenuAction.Hide) }
+                Text(
+                    "Menu button (≡): app info and uninstall",
+                    style = LauncherText.Caption,
+                    color = LauncherColors.TextTertiary,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                )
+            }
+            AppMenuKind.Manage -> {
+                MenuItem("App info", Modifier.focusRequester(first)) { onAction(MenuAction.AppInfo) }
+                if (!app.isSystem) MenuItem("Uninstall") { onAction(MenuAction.Uninstall) }
+            }
         }
-        // Always present (just inert at the ends) so focus never lands on a vanished item.
-        if (showMove) {
-            MenuItem("Move left", enabled = canMoveLeft) { onAction(MenuAction.MoveLeft) }
-            MenuItem("Move right", enabled = canMoveRight) { onAction(MenuAction.MoveRight) }
-        }
-        MenuItem("Hide") { onAction(MenuAction.Hide) }
-        MenuItem("App info") { onAction(MenuAction.AppInfo) }
-        if (!app.isSystem) MenuItem("Uninstall") { onAction(MenuAction.Uninstall) }
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
 }

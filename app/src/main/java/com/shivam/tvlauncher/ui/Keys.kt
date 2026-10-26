@@ -78,6 +78,16 @@ fun Modifier.remoteClickable(onClick: () -> Unit, onLongClick: (() -> Unit)? = n
         .focusable()
 }
 
+/**
+ * The remote's Menu (≡) button: acts on the press, swallows the release. Put it before the
+ * element's focusable (e.g. before [remoteClickable]) so it sees the key. Null does nothing.
+ */
+fun Modifier.onMenuKey(onMenu: (() -> Unit)?): Modifier = if (onMenu == null) this else onKeyEvent { event ->
+    if (event.key != Key.Menu) return@onKeyEvent false
+    if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) onMenu()
+    true
+}
+
 /** Fire OS's navigation sound for each D-pad direction. */
 private val DpadMoves = mapOf(
     Key.DirectionLeft to (FocusDirection.Left to SoundEffectConstants.NAVIGATION_LEFT),

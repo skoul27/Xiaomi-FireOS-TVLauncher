@@ -3,6 +3,9 @@ package com.shivam.tvlauncher.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.input.key.key
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -160,6 +163,9 @@ fun HomeScreen(
     val scrollMargin = with(LocalDensity.current) { SafeArea.Horizontal.toPx() }
     val rowScrollSpec = remember(scrollMargin, animate) { ComfortableScrollSpec(scrollMargin, animate) }
     var menu by remember { mutableStateOf<MenuTarget?>(null) }
+    var menuKind by remember { mutableStateOf(AppMenuKind.Arrange) }
+    // The My Apps tile being placed with Left/Right; OK (or Back) puts it down.
+    var moving by remember { mutableStateOf<String?>(null) }
     var popup by remember { mutableStateOf<AppsPopup?>(null) }
     var showSystem by remember { mutableStateOf(false) }
     // Launcher settings and the panels under it, newest last. Only the newest shows; Back closes it
@@ -173,7 +179,12 @@ fun HomeScreen(
     val consoles = remember(ports, consoleTiles) { consolesFor(ports, consoleTiles) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
     var pendingFocus by remember { mutableStateOf<MenuTarget?>(null) }
-    val openMenu = remember { { app: LaunchableApp, row: RowKind -> menu = MenuTarget(app.packageName, row) } }
+    val openMenu = remember {
+        { app: LaunchableApp, row: RowKind -> menuKind = AppMenuKind.Arrange; menu = MenuTarget(app.packageName, row) }
+    }
+    val openManage = remember {
+        { app: LaunchableApp, row: RowKind -> menuKind = AppMenuKind.Manage; menu = MenuTarget(app.packageName, row) }
+    }
     val focusDone = remember { { pendingFocus = null } }
     val showInHero = remember { { app: LaunchableApp -> hero.app = app } }
     // The My Apps tile focused last, to come back to from the top bar or the Consoles row.
@@ -253,6 +264,9 @@ fun HomeScreen(
                         firstItemFocus = initialFocus,
                         pendingFocus = pendingFocus?.packageName,
                         onPendingFocusDone = focusDone,
+                        onManage = openManage,
+                        moving = moving,
+                        onMoveDone = { moving = null },
                     )
                 }
             }
@@ -311,7 +325,12 @@ fun HomeScreen(
 
         if (ui != null) {
             menu?.let { target ->
-                AppMenuFor(ui, target, actions, onFocusMove = { pendingFocus = it }, onDismiss = { menu = null })
+                AppMenuFor(
+                    ui, target, menuKind, actions,
+                    onFocusMove = { pendingFocus = it },
+                    onStartMove = { moving = it.packageName },
+                    onDismiss = { menu = null },
+                )
             }
             when (popup) {
                 AppsPopup.All -> AllAppsPopup(ui, actions, onDismiss = { popup = null })
@@ -389,12 +408,15 @@ fun HomeScreen(
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
     BackHandler { focusStart() }
+    // While placing a tile, Back puts it down where it is (each step is already saved).
+    BackHandler(enabled = moving != null) { moving = null }
 
     // Home pressed while already home: close any overlay and go back to the start of My Apps.
     val windowInfo = LocalWindowInfo.current
     LaunchedEffect(homePresses) {
         if (homePresses == 0) return@LaunchedEffect
         menu = null
+        moving = null
         popup = null
         showSystem = false
         if (panels.lastOrNull() == SettingsPanel.More) actions.dismissBackup()
@@ -474,8 +496,10 @@ private fun ConsolesRow(consoles: List<Console>, onOpen: (Console) -> Unit, onLo
 private fun AppMenuFor(
     ui: LauncherUi,
     target: MenuTarget,
+    kind: AppMenuKind,
     actions: LauncherActions,
     onFocusMove: (MenuTarget?) -> Unit,
+    onStartMove: (LaunchableApp) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val row = ui.row(target.row)
@@ -498,8 +522,8 @@ private fun AppMenuFor(
     AppMenu(
         app = app,
         isPinned = isPinned,
-        canMoveLeft = index > 0,
-        canMoveRight = index < row.lastIndex,
+        kind = kind,
+        canMove = row.size > 1,
         onAction = { action ->
             when (action) {
                 MenuAction.TogglePin -> if (isPinned) {
@@ -508,8 +532,7 @@ private fun AppMenuFor(
                 } else {
                     actions.pin(app)
                 }
-                MenuAction.MoveLeft -> actions.move(app, target.row, -1)
-                MenuAction.MoveRight -> actions.move(app, target.row, 1)
+                MenuAction.Move -> onStartMove(app)
                 MenuAction.Hide -> {
                     focusNeighbour()
                     actions.hide(app)
@@ -517,7 +540,7 @@ private fun AppMenuFor(
                 MenuAction.AppInfo -> actions.openAppInfo(app)
                 MenuAction.Uninstall -> actions.uninstall(app)
             }
-            if (action != MenuAction.MoveLeft && action != MenuAction.MoveRight) onDismiss()
+            onDismiss()
         },
         onDismiss = onDismiss,
     )
@@ -550,7 +573,7 @@ private fun EmptyMyAppsHint() {
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun AppRow(
     apps: List<LaunchableApp>,
@@ -562,6 +585,11 @@ private fun AppRow(
     firstItemFocus: FocusRequester?,
     pendingFocus: String? = null,
     onPendingFocusDone: () -> Unit = {},
+    /** The remote's Menu (≡) button on a tile. */
+    onManage: (LaunchableApp, RowKind) -> Unit = { _, _ -> },
+    /** The tile being placed: Left/Right move it, OK puts it down, Up/Down are held. */
+    moving: String? = null,
+    onMoveDone: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val pendingRequester = remember { FocusRequester() }
@@ -577,13 +605,37 @@ private fun AppRow(
             var tileModifier: Modifier = Modifier
             if (index == 0 && firstItemFocus != null) tileModifier = tileModifier.focusRequester(firstItemFocus)
             if (app.packageName == pendingFocus) tileModifier = tileModifier.focusRequester(pendingRequester)
+            val isMoving = app.packageName == moving
+            // Focus stays on the tile as it moves, so nothing else scrolls it into view.
+            val bring = remember { BringIntoViewRequester() }
+            if (isMoving) {
+                LaunchedEffect(index) { withFrameNanos { }; bring.bringIntoView() }
+                tileModifier = tileModifier.onPreviewKeyEvent { event ->
+                    val down = event.type == KeyEventType.KeyDown
+                    when {
+                        event.key == Key.DirectionLeft || event.key == Key.DirectionRight -> {
+                            val delta = if (event.key == Key.DirectionLeft) -1 else 1
+                            if (down && index + delta in apps.indices) actions.move(app, kind, delta)
+                            true
+                        }
+                        event.key == Key.DirectionUp || event.key == Key.DirectionDown -> true
+                        event.isSelectKey() -> {
+                            if (event.type == KeyEventType.KeyUp) onMoveDone()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+            }
             AppTile(
                 app = app,
                 size = size,
                 onClick = { actions.launch(app) },
                 onLongClick = { onMenu(app, kind) },
                 onFocused = { onFocused(app) },
-                modifier = tileModifier,
+                onMenu = { onManage(app, kind) },
+                moving = isMoving,
+                modifier = tileModifier.bringIntoViewRequester(bring),
             )
         }
     }

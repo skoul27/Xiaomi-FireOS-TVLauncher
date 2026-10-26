@@ -153,6 +153,33 @@ fun SkipIcon(color: Color, previous: Boolean, size: Dp = 18.dp, modifier: Modifi
     }
 }
 
+/** A box with an arrow leaving its top-right corner: open in the app. */
+@Composable
+fun OpenIcon(color: Color, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width
+        val line = Stroke(width = w * 0.11f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        val box = Path().apply {
+            moveTo(w * 0.45f, w * 0.14f)
+            lineTo(w * 0.22f, w * 0.14f)
+            quadraticTo(w * 0.12f, w * 0.14f, w * 0.12f, w * 0.24f)
+            lineTo(w * 0.12f, w * 0.78f)
+            quadraticTo(w * 0.12f, w * 0.88f, w * 0.22f, w * 0.88f)
+            lineTo(w * 0.76f, w * 0.88f)
+            quadraticTo(w * 0.86f, w * 0.88f, w * 0.86f, w * 0.78f)
+            lineTo(w * 0.86f, w * 0.55f)
+        }
+        drawPath(box, color, style = line)
+        drawLine(color, Offset(w * 0.46f, w * 0.54f), Offset(w * 0.88f, w * 0.12f), line.width, StrokeCap.Round)
+        val head = Path().apply {
+            moveTo(w * 0.62f, w * 0.12f)
+            lineTo(w * 0.88f, w * 0.12f)
+            lineTo(w * 0.88f, w * 0.38f)
+        }
+        drawPath(head, color, style = line)
+    }
+}
+
 /** A 3×3 grid of rounded squares: all apps. */
 @Composable
 fun GridIcon(color: Color, size: Dp = 20.dp, modifier: Modifier = Modifier) {

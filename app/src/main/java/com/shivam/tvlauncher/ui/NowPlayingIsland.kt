@@ -310,40 +310,35 @@ private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainContro
                     Text(it, style = LauncherText.Body.copy(fontSize = 13.sp, lineHeight = 17.sp), color = LauncherColors.TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
+            Spacer(Modifier.width(8.dp))
+            // Open sits up here, out of the way of the centred playback controls. It takes focus
+            // on opening only if the app has no play/pause.
+            RoundIconButton(
+                onOpen,
+                Modifier.size(36.dp).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
+            ) { OpenIcon(it, size = 15.dp) }
         }
         if (now.durationMs > 0) {
             Spacer(Modifier.height(12.dp))
             Progress(now, tint)
         }
         Spacer(Modifier.height(10.dp))
-        // Playback controls on the left, Open on its own at the right.
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (now.canSkipPrevious) {
-                    RoundIconButton(now::skipPrevious, Modifier.size(42.dp)) { SkipIcon(it, previous = true, size = 15.dp) }
-                }
-                // The middle control takes focus on opening; Open does if the app has no play/pause.
-                if (now.canPlayPause) {
-                    RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(50.dp)) {
-                        if (now.playing) PauseIcon(it, size = 17.dp) else PlayIcon(it, size = 17.dp, modifier = Modifier.padding(start = 2.dp))
-                    }
-                }
-                if (now.canSkipNext) {
-                    RoundIconButton(now::skipNext, Modifier.size(42.dp)) { SkipIcon(it, previous = false, size = 15.dp) }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (now.canSkipPrevious) {
+                RoundIconButton(now::skipPrevious, Modifier.size(42.dp)) { SkipIcon(it, previous = true, size = 15.dp) }
+            }
+            // The middle control takes focus on opening.
+            if (now.canPlayPause) {
+                RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(50.dp)) {
+                    if (now.playing) PauseIcon(it, size = 17.dp) else PlayIcon(it, size = 17.dp, modifier = Modifier.padding(start = 2.dp))
                 }
             }
-            Spacer(Modifier.weight(1f))
-            GlassButton(
-                onClick = onOpen,
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                modifier = Modifier
-                    .height(36.dp)
-                    .then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
-            ) { focused ->
-                Text("Open", style = LauncherText.Button.copy(fontSize = 14.sp), color = buttonContentColor(focused))
+            if (now.canSkipNext) {
+                RoundIconButton(now::skipNext, Modifier.size(42.dp)) { SkipIcon(it, previous = false, size = 15.dp) }
             }
         }
     }

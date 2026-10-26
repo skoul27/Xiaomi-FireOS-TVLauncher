@@ -77,6 +77,7 @@ private val IconShape = RoundedCornerShape(9.dp)
 fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     var menuFor by remember { mutableStateOf<String?>(null) }
+    var menuKind by remember { mutableStateOf(AppMenuKind.Arrange) }
     val matches = remember(ui.all, query) { filterApps(ui.all, query) }
 
     PopupDialog(onDismiss, closeKey = ColorKey.Blue, width = 600.dp, onType = { query = it(query) }) { close ->
@@ -97,7 +98,8 @@ fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit
             resetKey = query,
             emptyText = if (query.isEmpty()) "No apps." else "No apps match “$query”.",
             onClick = { app -> actions.launch(app); close() },
-            onLongClick = { app -> menuFor = app.packageName },
+            onLongClick = { app -> menuKind = AppMenuKind.Arrange; menuFor = app.packageName },
+            onMenu = { app -> menuKind = AppMenuKind.Manage; menuFor = app.packageName },
         ) { app, focused -> AppRowContent(app, focused, trailing = null) }
     }
 
@@ -108,16 +110,15 @@ fun AllAppsPopup(ui: LauncherUi, actions: LauncherActions, onDismiss: () -> Unit
         AppMenu(
             app = menuApp,
             isPinned = isPinned,
-            canMoveLeft = false,
-            canMoveRight = false,
-            showMove = false,
+            kind = menuKind,
+            canMove = false,
             onAction = { action ->
                 when (action) {
                     MenuAction.TogglePin -> if (isPinned) actions.unpin(menuApp) else actions.pin(menuApp)
                     MenuAction.Hide -> actions.hide(menuApp)
                     MenuAction.AppInfo -> actions.openAppInfo(menuApp)
                     MenuAction.Uninstall -> actions.uninstall(menuApp)
-                    MenuAction.MoveLeft, MenuAction.MoveRight -> {}
+                    MenuAction.Move -> {}
                 }
                 menuFor = null
             },
@@ -295,6 +296,8 @@ private fun AppList(
     resetKey: Any? = null,
     onClick: (LaunchableApp) -> Unit,
     onLongClick: ((LaunchableApp) -> Unit)?,
+    /** The remote's Menu (≡) button on a row. */
+    onMenu: ((LaunchableApp) -> Unit)? = null,
     rowContent: @Composable RowScope.(LaunchableApp, focused: Boolean) -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -351,6 +354,7 @@ private fun AppList(
                                     focusedIndex = index
                                 }
                             }
+                            .onMenuKey(onMenu?.let { { it(app) } })
                             .remoteClickable(onClick = { onClick(app) }, onLongClick = onLongClick?.let { { it(app) } })
                             .clip(ItemShape)
                             .background(if (focused) Glass.FillFocused else Color.Transparent)

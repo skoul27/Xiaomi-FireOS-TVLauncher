@@ -58,6 +58,8 @@ fun AppTile(
     onLongClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    onMenu: (() -> Unit)? = null,
+    moving: Boolean = false,
 ) {
     GlassTile(
         size = size,
@@ -66,13 +68,16 @@ fun AppTile(
         onClick = onClick,
         onLongClick = onLongClick,
         onFocused = onFocused,
+        onMenu = onMenu,
+        moving = moving,
         modifier = modifier,
     )
 }
 
 /**
  * A focusable 16:9 glass tile with its label underneath (none if [label] is null). Draws [art]
- * full-bleed once it is available (fading it in), otherwise [content] on plain glass.
+ * full-bleed once it is available (fading it in), otherwise [content] on plain glass. [moving]
+ * (being placed with the arrows) gives it a solid accent rim and swaps the label for the hint.
  */
 @Composable
 fun GlassTile(
@@ -83,6 +88,8 @@ fun GlassTile(
     onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
+    onMenu: (() -> Unit)? = null,
+    moving: Boolean = false,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val motion = remember { FocusMotion() }
@@ -103,6 +110,7 @@ fun GlassTile(
                     motion.onFocusChanged(it.isFocused, animate, scope)
                     if (it.isFocused) onFocused()
                 }
+                .onMenuKey(onMenu)
                 .remoteClickable(onClick, onLongClick)
                 .graphicsLayer {
                     val s = 1f + (FocusedScale - 1f) * motion.focus.value
@@ -113,16 +121,16 @@ fun GlassTile(
                     cameraDistance = 14f * density
                 }
                 .focusGlow(motion, accent)
-                .tileBorder(motion, accent)
+                .tileBorder(motion, accent, moving)
                 .clip(TileShape)
                 .tileSurface(art, artAlpha, motion),
         ) {
             if (art == null) content()
         }
         if (label != null) Text(
-            text = label,
+            text = if (moving) "‹   OK to place   ›" else label,
             style = LauncherText.Label,
-            color = LauncherColors.TextPrimary,
+            color = if (moving) accent else LauncherColors.TextPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
@@ -154,14 +162,17 @@ private fun Modifier.tileSurface(art: ImageBitmap?, artAlpha: Animatable<Float, 
         }
     }
 
-/** Hairline glass edge at rest; a bright, slightly accent-tinted rim when focused. */
-private fun Modifier.tileBorder(motion: FocusMotion, accent: Color): Modifier = drawWithCache {
+/**
+ * Hairline glass edge at rest; a bright, slightly accent-tinted rim when focused; a thicker rim
+ * in the accent itself while [moving].
+ */
+private fun Modifier.tileBorder(motion: FocusMotion, accent: Color, moving: Boolean): Modifier = drawWithCache {
     val radius = Radii.Tile.toPx()
-    val focusedColor = lerp(Color.White, accent, 0.25f)
+    val focusedColor = if (moving) accent else lerp(Color.White, accent, 0.25f)
     onDrawWithContent {
         drawContent()
         val f = motion.amount
-        val width = (1f + 1.5f * f).dp.toPx()
+        val width = ((if (moving) 1f + 3f * f else 1f + 1.5f * f)).dp.toPx()
         val inset = width / 2f
         drawRoundRect(
             color = lerp(Glass.Border, focusedColor, f),
