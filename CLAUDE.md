@@ -59,6 +59,13 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
   (Fire OS updates do this): Settings → My Fire TV → Developer Options. If it times
   out, the TV is probably asleep. A new PC must be accepted on the TV's
   "Allow USB debugging?" prompt.
+- **Never `am force-stop com.shivam.tvlauncher`.** Android responds by removing the app's
+  accessibility service from `enabled_accessibility_services`, which turns the remote shortcut
+  and the Home redirect off (re-enable with the commands in `RECOVERY.md`). `adb install -r`
+  is fine. To restart the UI, open it with `am start`, or kill only the process if you must.
+- Shell-injected keys (`adb shell input keyevent KEYCODE_PROG_BLUE`) don't reach the
+  accessibility key filter, so the remote shortcut can only be tested with the real remote.
+  The Home redirect can be tested over adb (`input keyevent KEYCODE_HOME` from another app).
 - The release build is also signed with the debug key (see `app/build.gradle.kts`),
   so release and debug can install over each other.
 
