@@ -12,6 +12,7 @@ import android.widget.EditText
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
@@ -68,6 +71,7 @@ import com.shivam.tvlauncher.ColorKey
 import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.MaxTileName
+import com.shivam.tvlauncher.PhotoUpload
 import com.shivam.tvlauncher.PortTile
 import com.shivam.tvlauncher.R
 import com.shivam.tvlauncher.RemoteShortcut
@@ -75,6 +79,10 @@ import com.shivam.tvlauncher.SystemShortcut
 import com.shivam.tvlauncher.TileMode
 import com.shivam.tvlauncher.Wallpaper
 import com.shivam.tvlauncher.rememberAppArt
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import kotlin.math.floor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -283,6 +291,7 @@ fun ThemeMenu(
     wallpaper: Wallpaper,
     hasPhoto: Boolean,
     actions: LauncherActions,
+    onChoosePhoto: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val first = remember { FocusRequester() }
@@ -290,18 +299,84 @@ fun ThemeMenu(
         PanelHeader("Theme", "Colour, background and motion", MenuIcons.Palette)
         val stepAccent = { delta: Int -> actions.setTheme(Accent.entries.stepFrom(accent, delta)) }
         SettingItem("Accent", accent.label, swatch = accent.color, icon = MenuIcons.Palette, modifier = Modifier.focusRequester(first), onStep = stepAccent)
-        // Photo is in the cycle only once there's a photo to show.
-        val backgrounds = Wallpaper.entries.filter { it != Wallpaper.Photo || hasPhoto }
         SettingItem(
             "Background",
             wallpaper.label,
             icon = MenuIcons.Image,
-            onStep = { delta -> actions.setWallpaper(backgrounds.stepFrom(wallpaper.takeIf { it in backgrounds } ?: Wallpaper.Dynamic, delta)) },
+            onStep = { delta -> actions.setWallpaper(Wallpaper.entries.stepFrom(wallpaper, delta)) },
         )
-        MenuItem(if (hasPhoto) "Choose another photo" else "Choose a photo", icon = MenuIcons.AddPhoto, onClick = actions::choosePhoto)
+        // Only with Photo as the background; until one is chosen, the backdrop stays app-tinted.
+        if (wallpaper == Wallpaper.Photo) {
+            MenuItem(if (hasPhoto) "Choose another photo" else "Choose a photo", icon = MenuIcons.AddPhoto, onClick = onChoosePhoto)
+        }
         SettingItem("Animations", if (animations) "On" else "Off", icon = MenuIcons.Sparkle, onStep = { actions.setAnimations(!animations) })
     }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+}
+
+/**
+ * Fire OS's own file picker can't be driven with a remote, so the photo comes from a phone instead:
+ * a QR code for a page this launcher serves on the home network while the panel is open.
+ */
+@Composable
+fun PhotoUploadMenu(state: PhotoUpload?, onDismiss: () -> Unit) {
+    val done = remember { FocusRequester() }
+    MenuDialog(onDismiss, width = 560) {
+        PanelHeader("Choose a photo", "Send one from your phone", MenuIcons.AddPhoto)
+        when (state) {
+            is PhotoUpload.Ready -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                QrCode(state.url, Modifier.size(180.dp))
+                Spacer(Modifier.width(20.dp))
+                Column {
+                    Text("Scan with your phone's camera, or open this in its browser:", style = LauncherText.Caption, color = LauncherColors.TextSecondary)
+                    Spacer(Modifier.height(6.dp))
+                    Text(state.url, style = LauncherText.Body, color = LauncherColors.TextPrimary)
+                    Spacer(Modifier.height(10.dp))
+                    Text("The phone needs to be on the same Wi-Fi as this TV.", style = LauncherText.Caption, color = LauncherColors.TextSecondary)
+                    Spacer(Modifier.height(14.dp))
+                    val status = when (state.status) {
+                        PhotoUpload.Status.Waiting -> "Waiting for a photo…"
+                        PhotoUpload.Status.Receiving -> "Receiving…"
+                        PhotoUpload.Status.Set -> "Photo set. Send another, or press Back."
+                        PhotoUpload.Status.Failed -> "Couldn't use that image. Try another."
+                    }
+                    Text(status, style = LauncherText.Body, color = LauncherColors.TextPrimary)
+                }
+            }
+            PhotoUpload.Unavailable -> Text(
+                "This TV isn't connected to a network, so a phone can't reach it. Connect it to Wi-Fi and try again.",
+                style = LauncherText.Body,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+            null -> Spacer(Modifier.height(204.dp))
+        }
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+            MenuItem("Done", Modifier.width(180.dp).focusRequester(done), centered = true, onClick = onDismiss)
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { done.requestFocus() } }
+}
+
+/** Dark modules on a white card with a quiet zone, so phone cameras pick it up off a dark panel. */
+@Composable
+private fun QrCode(text: String, modifier: Modifier = Modifier) {
+    val matrix = remember(text) {
+        QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, 0, 0, mapOf(EncodeHintType.MARGIN to 0))
+    }
+    Canvas(modifier.clip(RoundedCornerShape(12.dp)).background(Color.White).padding(12.dp)) {
+        // Whole pixels per module, so neighbouring modules meet without hairline seams.
+        val cell = floor(size.minDimension / matrix.width)
+        val inset = (size.minDimension - cell * matrix.width) / 2
+        for (y in 0 until matrix.height) {
+            for (x in 0 until matrix.width) {
+                if (matrix[x, y]) drawRect(Color.Black, Offset(inset + x * cell, inset + y * cell), Size(cell, cell))
+            }
+        }
+    }
 }
 
 /** What the Home button and a colour button on the remote do. Left and right change a value. */

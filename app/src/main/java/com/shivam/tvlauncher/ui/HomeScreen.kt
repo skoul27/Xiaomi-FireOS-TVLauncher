@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,6 +69,7 @@ import com.shivam.tvlauncher.Console
 import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.NowPlaying
+import com.shivam.tvlauncher.PhotoUpload
 import com.shivam.tvlauncher.PortTile
 import com.shivam.tvlauncher.TileMode
 import com.shivam.tvlauncher.consolesFor
@@ -104,8 +106,9 @@ interface LauncherActions {
     fun setHomeRedirect(enabled: Boolean)
     fun setConsoleTile(inputId: String, tile: PortTile)
     fun setWallpaper(wallpaper: Wallpaper)
-    /** Opens the system picker; the chosen image becomes the Photo background. */
-    fun choosePhoto()
+    /** Opens the page a phone sends a photo to; each one received becomes the Photo background. */
+    fun startPhotoUpload()
+    fun stopPhotoUpload()
     /** Re-reads whether the shortcut service is on; the panels call it as they open. */
     fun recheckShortcut()
     fun exportBackup()
@@ -135,7 +138,7 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
-private enum class SettingsPanel { Launcher, Theme, Shortcuts, More, ConsoleTiles }
+private enum class SettingsPanel { Launcher, Theme, Photo, Shortcuts, More, ConsoleTiles }
 
 private fun LauncherSection.panel(): SettingsPanel = when (this) {
     LauncherSection.Theme -> SettingsPanel.Theme
@@ -163,6 +166,8 @@ fun HomeScreen(
     photo: ImageBitmap?,
     /** Whether a photo has been chosen, even if it isn't the background now. */
     hasPhoto: Boolean,
+    /** "Choose a photo" while it's open: the address to send to, and how the last photo went. */
+    photoUpload: PhotoUpload?,
     homePresses: Int,
     opens: Int,
     backup: BackupState?,
@@ -381,7 +386,12 @@ fun HomeScreen(
                 onOpen = { openPanel(it.panel()) },
                 onDismiss = closePanel,
             )
-            SettingsPanel.Theme -> ThemeMenu(LocalAccentTheme.current, animate, wallpaper, hasPhoto, actions, onDismiss = closePanel)
+            SettingsPanel.Theme -> ThemeMenu(
+                LocalAccentTheme.current, animate, wallpaper, hasPhoto, actions,
+                onChoosePhoto = { openPanel(SettingsPanel.Photo) },
+                onDismiss = closePanel,
+            )
+            SettingsPanel.Photo -> PhotoUploadMenu(photoUpload, onDismiss = closePanel)
             SettingsPanel.Shortcuts -> ShortcutsMenu(homeRedirect, remoteShortcut, actions, onDismiss = closePanel)
             SettingsPanel.ConsoleTiles -> {
                 ConsoleTilesMenu(
@@ -427,6 +437,13 @@ fun HomeScreen(
     // so read it fresh whenever a panel that shows it opens.
     val shortcutsOpen = panels.lastOrNull() == SettingsPanel.Shortcuts
     LaunchedEffect(showSystem, shortcutsOpen) { if (showSystem || shortcutsOpen) actions.recheckShortcut() }
+
+    // The upload page is served only while its panel is open and the launcher is in front.
+    val photoOpen = panels.lastOrNull() == SettingsPanel.Photo
+    LifecycleStartEffect(photoOpen) {
+        if (photoOpen) actions.startPhotoUpload()
+        onStopOrDispose { if (photoOpen) actions.stopPhotoUpload() }
+    }
 
     // Home has nothing to go back to: Back returns to the start instead of leaving.
     BackHandler { focusStart() }

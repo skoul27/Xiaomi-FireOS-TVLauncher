@@ -46,6 +46,8 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     // Installs the Compose libraries' baseline profiles at install time, so first scrolls are AOT-compiled.
     implementation(libs.androidx.profileinstaller)
+    // QR code for "Choose a photo"; encoder only, no camera.
+    implementation(libs.zxing.core)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)

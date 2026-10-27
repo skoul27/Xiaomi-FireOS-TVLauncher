@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.ImageBitmap
@@ -101,13 +100,8 @@ class MainActivity : ComponentActivity() {
         override fun setHomeRedirect(enabled: Boolean) = viewModel.setHomeRedirect(enabled)
         override fun setConsoleTile(inputId: String, tile: PortTile) = viewModel.setConsoleTile(inputId, tile)
         override fun setWallpaper(wallpaper: Wallpaper) = viewModel.setWallpaper(wallpaper)
-        override fun choosePhoto() {
-            try {
-                pickPhoto.launch(arrayOf("image/*"))
-            } catch (e: ActivityNotFoundException) {
-                Toast.makeText(this@MainActivity, "No photo picker on this TV", Toast.LENGTH_SHORT).show()
-            }
-        }
+        override fun startPhotoUpload() = viewModel.startPhotoUpload()
+        override fun stopPhotoUpload() = viewModel.stopPhotoUpload()
         override fun recheckShortcut() {
             shortcutService = readShortcutService()
         }
@@ -115,14 +109,6 @@ class MainActivity : ComponentActivity() {
         override fun importBackup() = viewModel.checkImport()
         override fun confirmImport() = viewModel.confirmImport()
         override fun dismissBackup() = viewModel.dismissBackup()
-    }
-
-    /** Fire OS's document picker (DocumentsUI); the image is copied in, so no lasting access is kept. */
-    private val pickPhoto = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@registerForActivityResult
-        viewModel.savePhoto(uri) { saved ->
-            if (!saved) Toast.makeText(this, "Couldn't use that image", Toast.LENGTH_SHORT).show()
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,6 +121,7 @@ class MainActivity : ComponentActivity() {
                 val backup by viewModel.backup.collectAsStateWithLifecycle()
                 val ports by viewModel.ports.collectAsStateWithLifecycle()
                 val photoVersion by viewModel.photoVersion.collectAsStateWithLifecycle()
+                val photoUpload by viewModel.photoUpload.collectAsStateWithLifecycle()
                 val wallpaper = Wallpaper.named(settings.wallpaper)
                 val hasPhoto = remember(photoVersion) { WallpaperPhoto.exists(this) }
                 // Decoded only while it's the background, so the bitmap isn't held otherwise.
@@ -155,6 +142,7 @@ class MainActivity : ComponentActivity() {
                     wallpaper = wallpaper,
                     photo = photo,
                     hasPhoto = hasPhoto,
+                    photoUpload = photoUpload,
                     homePresses = homePresses,
                     opens = opens,
                     backup = backup,

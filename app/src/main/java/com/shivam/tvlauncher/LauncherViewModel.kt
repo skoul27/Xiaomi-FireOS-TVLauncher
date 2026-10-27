@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -100,17 +101,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     /** Bumped each time a new photo is saved, so the screen reloads it. */
     val photoVersion: StateFlow<Int> = _photoVersion
 
-    /** Copies the picked image in and switches the background to it. */
-    fun savePhoto(uri: android.net.Uri, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val saved = withContext(Dispatchers.IO) { WallpaperPhoto.save(getApplication(), uri) }
+    private var uploadServer: PhotoUploadServer? = null
+    private val _photoUpload = MutableStateFlow<PhotoUpload?>(null)
+
+    /** The "Choose a photo" screen's state; null while it's closed. */
+    val photoUpload: StateFlow<PhotoUpload?> = _photoUpload
+
+    /** Starts the phone-upload page; each photo sent is copied in and becomes the background. */
+    fun startPhotoUpload() {
+        if (uploadServer != null) return
+        val app = getApplication<Application>()
+        val server = PhotoUploadServer(
+            viewModelScope,
+            app.cacheDir,
+            onEvent = { status -> _photoUpload.update { (it as? PhotoUpload.Ready)?.copy(status = status) ?: it } },
+        ) { file ->
+            val saved = WallpaperPhoto.save(app, android.net.Uri.fromFile(file))
             if (saved) {
                 _photoVersion.value++
                 prefsStore.update { it.copy(wallpaper = Wallpaper.Photo.name) }
             }
-            onResult(saved)
+            saved
+        }
+        uploadServer = server
+        viewModelScope.launch {
+            val address = withContext(Dispatchers.IO) { lanAddress(app) }
+            val port = address?.let { withContext(Dispatchers.IO) { server.start() } }
+            // Closed again while the port was opening.
+            if (uploadServer !== server) return@launch server.stop()
+            _photoUpload.value = if (port != null) PhotoUpload.Ready("http://$address:$port/${server.token}") else PhotoUpload.Unavailable
         }
     }
+
+    fun stopPhotoUpload() {
+        uploadServer?.stop()
+        uploadServer = null
+        _photoUpload.value = null
+    }
+
+    override fun onCleared() = stopPhotoUpload()
 
     /** Automatic with no name is the default, so it isn't stored; a name survives cycling past Other. */
     fun setConsoleTile(inputId: String, tile: PortTile) = edit {
