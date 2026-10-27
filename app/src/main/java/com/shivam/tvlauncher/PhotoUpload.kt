@@ -130,14 +130,14 @@ class PhotoUploadServer(
 
     private companion object {
         const val PreferredPort = 8765
-        /** The page already scales to 1080p before sending; this is for the raw-file fallback. */
+        /** The page already scales to 4K before sending; this is for the raw-file fallback. */
         const val MaxBytes = 40L * 1024 * 1024
     }
 }
 
 /**
  * The phone's side. The browser decodes the image (HEIC on iPhones, EXIF rotation included), scales
- * it to cover 1920×1080 at most, and posts a JPEG; if it can't decode it, the original file goes as is.
+ * it to cover 3840×2160 at most, and posts a JPEG; if it can't decode it, the original file goes as is.
  */
 private val UploadPage = """
 <!doctype html>
@@ -184,14 +184,14 @@ private val UploadPage = """
     var url = URL.createObjectURL(file);
     var img = new Image();
     img.onload = function () {
-      var scale = Math.min(1, Math.max(1920 / img.naturalWidth, 1080 / img.naturalHeight));
+      var scale = Math.min(1, Math.max(3840 / img.naturalWidth, 2160 / img.naturalHeight));
       var canvas = document.createElement('canvas');
       canvas.width = Math.round(img.naturalWidth * scale);
       canvas.height = Math.round(img.naturalHeight * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       preview.src = url;
       preview.style.display = 'block';
-      canvas.toBlob(function (blob) { send(blob || file); }, 'image/jpeg', 0.9);
+      canvas.toBlob(function (blob) { send(blob || file); }, 'image/jpeg', 0.95);
     };
     img.onerror = function () { send(file); };
     img.src = url;

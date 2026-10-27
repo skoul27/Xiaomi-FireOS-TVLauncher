@@ -31,9 +31,13 @@ object WallpaperPhoto {
 
     fun exists(context: Context): Boolean = file(context).isFile
 
+    /** The panel is 4K; anything bigger than covering it is wasted space. */
+    private const val MaxWidth = 3840
+    private const val MaxHeight = 2160
+
     /**
-     * Copies the picked image in, scaled down to cover 1920×1080 at most, so it decodes fast and
-     * stays small. Writes aside and swaps in, so a failure keeps the previous photo. Call off the
+     * Copies the picked image in at full quality, scaled down only if it's bigger than covering
+     * 3840×2160. Writes aside and swaps in, so a failure keeps the previous photo. Call off the
      * main thread; false if the image couldn't be read.
      */
     fun save(context: Context, uri: Uri): Boolean = runCatching {
@@ -41,12 +45,11 @@ object WallpaperPhoto {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
-        var sample = 1
-        while (bounds.outWidth / (sample * 2) >= 1920 && bounds.outHeight / (sample * 2) >= 1080) sample *= 2
+        val sample = sampleToCover(bounds.outWidth, bounds.outHeight, MaxWidth, MaxHeight)
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
         } ?: return false
-        val scale = maxOf(1920f / decoded.width, 1080f / decoded.height).coerceAtMost(1f)
+        val scale = maxOf(MaxWidth.toFloat() / decoded.width, MaxHeight.toFloat() / decoded.height).coerceAtMost(1f)
         val bitmap = if (scale < 1f) {
             Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true)
         } else {
@@ -54,7 +57,7 @@ object WallpaperPhoto {
         }
         val target = file(context)
         val temp = File(target.parentFile, "$Name.tmp")
-        temp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+        temp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
         if (!temp.renameTo(target)) {
             target.delete()
             check(temp.renameTo(target))
@@ -62,5 +65,23 @@ object WallpaperPhoto {
         true
     }.getOrDefault(false)
 
-    fun load(context: Context): Bitmap? = runCatching { BitmapFactory.decodeFile(file(context).path) }.getOrNull()
+    /**
+     * Decoded no bigger than the app's window needs. Fire OS draws apps at 1920×1080 and scales
+     * that up to the 4K panel, so a full 4K bitmap would only cost memory (33 MB against 8).
+     */
+    fun load(context: Context): Bitmap? = runCatching {
+        val path = file(context).path
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        val screen = context.resources.displayMetrics
+        val sample = sampleToCover(bounds.outWidth, bounds.outHeight, screen.widthPixels, screen.heightPixels)
+        BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    }.getOrNull()
+
+    /** The largest power-of-two step down that still covers [width]×[height]. */
+    private fun sampleToCover(srcWidth: Int, srcHeight: Int, width: Int, height: Int): Int {
+        var sample = 1
+        while (srcWidth / (sample * 2) >= width && srcHeight / (sample * 2) >= height) sample *= 2
+        return sample
+    }
 }

@@ -80,10 +80,12 @@ fun rememberNowPlaying(): NowPlaying? {
     return flow.collectAsStateWithLifecycle(null).value
 }
 
-private val ExpandedWidth = 330.dp
+private val ExpandedWidth = 560.dp
+private val ExpandedArtSize = 136.dp
 
-/** The open panel's buttons: rounded squares like the top bar's, a size down. */
+/** The open card's buttons: rounded squares like the top bar's, a size down. */
 private val ControlShape = RoundedCornerShape(10.dp)
+private val ControlSize = 40.dp
 
 /**
  * Now playing as a "dynamic island": a slim pill the height of the top bar's buttons (artwork,
@@ -123,7 +125,7 @@ fun NowPlayingIsland(now: NowPlaying, bodyFocus: FocusRequester, modifier: Modif
     }
     val corner by animateDpAsState(
         // Closed it matches the top bar's buttons (TopBarButtonShape); open, a panel's corners.
-        if (expanded) 14.dp else 12.dp,
+        if (expanded) 18.dp else 12.dp,
         if (animate) spring(dampingRatio = 0.72f, stiffness = 380f) else snap(),
         label = "corner",
     )
@@ -178,7 +180,9 @@ private fun Modifier.liquidGlass(shape: Shape, tint: Color, lit: Boolean, solid:
         .background(
             when {
                 lit -> Brush.verticalGradient(listOf(LauncherColors.TextPrimary, LauncherColors.TextPrimary))
-                solid -> Brush.verticalGradient(listOf(lerpColor(Color(0xF0181A20), tint, 0.22f), Color(0xF5121318)))
+                // The settings panels' fill, washed with the artwork's colour from the artwork's side.
+                // Nearly opaque: there's no dimmed backdrop behind it, so the date would show through.
+                solid -> Brush.horizontalGradient(listOf(lerpColor(OpenFill, tint, 0.2f), OpenFill))
                 else -> Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.16f), tint.copy(alpha = 0.10f)))
             },
         )
@@ -201,6 +205,8 @@ private fun Modifier.liquidGlass(shape: Shape, tint: Color, lit: Boolean, solid:
             shape,
         )
 }
+
+private val OpenFill = Glass.PanelFill.copy(alpha = 0.98f)
 
 private fun lerpColor(a: Color, b: Color, t: Float): Color = Color(
     red = a.red + (b.red - a.red) * t,
@@ -283,76 +289,74 @@ private fun Equalizer(playing: Boolean, color: Color) {
     }
 }
 
+/**
+ * A landscape player card: big artwork on the left; title, artist and app, the progress line and
+ * one row of controls on the right. Left to right the row is previous, play/pause, next, then Open.
+ */
 @Composable
 private fun Expanded(now: NowPlaying, art: ImageBitmap?, tint: Color, mainControl: FocusRequester, onOpen: () -> Unit) {
-    Column(Modifier.width(ExpandedWidth).padding(14.dp)) {
-        // Laid out like the panel headers: artwork tile, bold title, a line under it, a divider.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Artwork(art, 54.dp, RoundedCornerShape(14.dp))
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
+    val accent = tint.brighten()
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(ExpandedWidth).padding(16.dp)) {
+        Artwork(art, ExpandedArtSize, RoundedCornerShape(12.dp))
+        Spacer(Modifier.width(20.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     now.title,
-                    style = LauncherText.Title.copy(fontSize = 17.sp, lineHeight = 22.sp),
+                    style = LauncherText.Title,
                     color = LauncherColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
-                Text(
-                    listOfNotNull(now.subtitle, now.appName).joinToString(" · "),
-                    style = LauncherText.Caption,
-                    color = LauncherColors.TextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                    Box(Modifier.size(6.dp).background(if (now.playing) tint.brighten() else LauncherColors.TextTertiary, CircleShape))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        if (now.playing) "Playing" else "Paused",
-                        style = LauncherText.Caption.copy(fontSize = 12.sp, lineHeight = 15.sp),
-                        color = if (now.playing) tint.brighten() else LauncherColors.TextTertiary,
-                    )
+                Spacer(Modifier.width(12.dp))
+                Equalizer(playing = now.playing, color = accent)
+            }
+            Text(
+                listOfNotNull(now.subtitle, now.appName).joinToString(" · "),
+                style = LauncherText.Body.copy(fontSize = 16.sp, lineHeight = 21.sp),
+                color = LauncherColors.TextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(14.dp))
+            if (now.durationMs > 0) {
+                Progress(now, accent)
+                Spacer(Modifier.height(14.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (now.canSkipPrevious) {
+                    RoundIconButton(now::skipPrevious, Modifier.size(ControlSize), ControlShape) { SkipIcon(it, previous = true, size = 14.dp) }
                 }
-            }
-            Spacer(Modifier.width(8.dp))
-            // Open sits up here, out of the way of the centred playback controls. It takes focus
-            // on opening only if the app has no play/pause.
-            RoundIconButton(
-                onOpen,
-                Modifier.size(34.dp).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
-                ControlShape,
-            ) { OpenIcon(it, size = 14.dp) }
-        }
-        Box(Modifier.padding(vertical = 10.dp).fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.14f)))
-        if (now.durationMs > 0) {
-            Progress(now, tint)
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (now.canSkipPrevious) {
-                RoundIconButton(now::skipPrevious, Modifier.size(34.dp), ControlShape) { SkipIcon(it, previous = true, size = 13.dp) }
-            }
-            // The middle control takes focus on opening.
-            if (now.canPlayPause) {
-                RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(42.dp), ControlShape) {
-                    if (now.playing) PauseIcon(it, size = 15.dp) else PlayIcon(it, size = 15.dp, modifier = Modifier.padding(start = 2.dp))
+                // Play/pause takes focus on opening; Open does when the app has none.
+                if (now.canPlayPause) {
+                    RoundIconButton(now::playPause, Modifier.focusRequester(mainControl).size(ControlSize), ControlShape) {
+                        if (now.playing) PauseIcon(it, size = 15.dp) else PlayIcon(it, size = 15.dp, modifier = Modifier.padding(start = 2.dp))
+                    }
                 }
-            }
-            if (now.canSkipNext) {
-                RoundIconButton(now::skipNext, Modifier.size(34.dp), ControlShape) { SkipIcon(it, previous = false, size = 13.dp) }
+                if (now.canSkipNext) {
+                    RoundIconButton(now::skipNext, Modifier.size(ControlSize), ControlShape) { SkipIcon(it, previous = false, size = 14.dp) }
+                }
+                Spacer(Modifier.weight(1f))
+                GlassButton(
+                    onOpen,
+                    Modifier.height(ControlSize).then(if (now.canPlayPause) Modifier else Modifier.focusRequester(mainControl)),
+                    ControlShape,
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                ) { focused ->
+                    val color = buttonContentColor(focused)
+                    OpenIcon(color, size = 14.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Open ${now.appName}", style = LauncherText.Label, color = color, maxLines = 1)
+                }
             }
         }
     }
 }
 
-/** A thin track with the elapsed and total time, ticking while playing. */
+/** Elapsed time, a thin track, total time, on one line; ticks while playing. */
 @Composable
-private fun Progress(now: NowPlaying, tint: Color) {
+private fun Progress(now: NowPlaying, fill: Color) {
     var position by remember(now) { mutableLongStateOf(now.position()) }
     LaunchedEffect(now) {
         while (now.playing) {
@@ -362,20 +366,17 @@ private fun Progress(now: NowPlaying, tint: Color) {
         position = now.position()
     }
     val fraction = (position.toFloat() / now.durationMs).coerceIn(0f, 1f)
-    val fill = tint.brighten()
-    Column {
-        Canvas(Modifier.fillMaxWidth().height(4.dp)) {
+    val style = LauncherText.Caption.copy(fontSize = 13.sp, fontWeight = FontWeight.Normal)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(formatTime(position), style = style, color = LauncherColors.TextTertiary, modifier = Modifier.widthIn(min = 36.dp))
+        Spacer(Modifier.width(10.dp))
+        Canvas(Modifier.weight(1f).height(4.dp)) {
             val r = CornerRadius(size.height / 2f)
             drawRoundRect(Color.White.copy(alpha = 0.16f), cornerRadius = r)
             drawRoundRect(fill, size = Size(size.width * fraction, size.height), cornerRadius = r)
         }
-        Spacer(Modifier.height(6.dp))
-        Row {
-            val style = LauncherText.Caption.copy(fontSize = 12.sp, fontWeight = FontWeight.Normal)
-            Text(formatTime(position), style = style, color = LauncherColors.TextTertiary)
-            Spacer(Modifier.weight(1f))
-            Text(formatTime(now.durationMs), style = style, color = LauncherColors.TextTertiary)
-        }
+        Spacer(Modifier.width(10.dp))
+        Text(formatTime(now.durationMs), style = style, color = LauncherColors.TextTertiary)
     }
 }
 
