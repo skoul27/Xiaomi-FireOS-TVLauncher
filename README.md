@@ -6,6 +6,12 @@ replaces Fire OS's ad-filled home with a calm, glass-styled grid of your own app
 Built for and tested on one Fire TV (Fire OS on Android 11, model AFTNE4E43F). Other Fire TV
 and Android TV devices running Android 9 or later should work, but haven't been tested.
 
+![Home screen](docs/screenshots/home.jpg)
+
+| Now playing | All apps | Settings |
+|---|---|---|
+| ![Now playing card](docs/screenshots/now-playing.jpg) | ![All apps](docs/screenshots/all-apps.jpg) | ![Settings](docs/screenshots/settings.jpg) |
+
 ## Features
 
 - **My Apps**: pin, reorder and hide apps; All apps and Hidden apps as pop-ups. Long-press OK on

@@ -57,7 +57,8 @@ fun Hero(modifier: Modifier = Modifier) {
     val locale = Locale.getDefault()
     val is24h = DateFormat.is24HourFormat(context)
     val timeFormat = remember(is24h, locale) { SimpleDateFormat(if (is24h) "HH:mm" else "h:mm", locale) }
-    val dateFormat = remember(locale) { SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale) }
+    // Short names ("Wed, 28 Oct"): the long ones ran under the centred Now playing pill.
+    val dateFormat = remember(locale) { SimpleDateFormat(DateFormat.getBestDateTimePattern(locale, "EEEdMMM"), locale) }
     val date = Date(now)
     val weather = rememberWeather()
 
