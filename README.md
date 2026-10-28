@@ -1,7 +1,5 @@
 # TV Launcher
 
-[![Build](https://github.com/skoul27/Xiaomi-FireOS-TVLauncher/actions/workflows/build.yml/badge.svg)](https://github.com/skoul27/Xiaomi-FireOS-TVLauncher/actions/workflows/build.yml)
-
 A custom home screen for Amazon Fire TV, written in Kotlin with Jetpack Compose for TV. It
 replaces Fire OS's ad-filled home with a calm, glass-styled grid of your own apps.
 
