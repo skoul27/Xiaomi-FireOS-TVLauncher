@@ -1,7 +1,9 @@
 # Recovery: getting Amazon's launcher back
 
 Use this if the Home button stops working, shows a blank screen, or you simply want the stock
-Fire TV home back. Run from a PC on the same network as the TV.
+Fire TV home back. Run from a computer on the same network as the TV, with
+[adb](https://developer.android.com/tools/releases/platform-tools) installed. Replace `<TV-IP>`
+with your TV's address (see "What this depends on" below).
 
 ```sh
 adb connect <TV-IP>:5555
@@ -9,14 +11,14 @@ adb shell pm enable com.amazon.tv.launcher
 ```
 
 Then press Home on the remote. Amazon's launcher has priority 950 for HOME, so it takes over
-again as soon as it is enabled. The launcher app itself never changes system settings; the one
-setting changed by hand is the remote shortcut below.
+again as soon as it is enabled. The launcher app itself never changes system settings; the only
+settings changed are the two adb steps below (remote shortcut and Now playing).
 
-## Home button (this Fire OS version)
+## Home button on Fire OS
 
-As of 2026-10-25 Fire OS refuses to disable Amazon's launcher (`pm disable-user` fails with
-"Cannot disable a protected package"), and it sends Home to Amazon's launcher even with this
-one set as the preferred Home app. It also handles the Home key before any app (or
+Current Fire OS versions refuse to disable Amazon's launcher (`pm disable-user` fails with
+"Cannot disable a protected package"), and send Home to Amazon's launcher even with this one
+set as the preferred Home app. Fire OS also handles the Home key before any app (or
 accessibility service) sees it. So the remote shortcut service below watches for Amazon's home
 screen opening and opens this launcher over it, after a 0.4 s wait (Fire OS Settings passes
 through Amazon's home on the way to its own screen; that is left alone).
@@ -33,8 +35,7 @@ through Amazon's home on the way to its own screen; that is left alone).
 - **To get Amazon's home back** from the TV: gear → Launcher settings → Shortcuts → Home button →
   "Fire TV home". From a computer: turn the service off with the commands below.
 
-This launcher was also set as the preferred Home app on 2026-10-25. Fire OS ignores that today;
-to undo it anyway:
+If you set this launcher as the preferred Home app and want to undo it:
 
 ```sh
 adb shell cmd package set-home-activity --user 0 com.amazon.tv.launcher/.ui.HomeActivity_vNext
@@ -43,55 +44,51 @@ adb shell cmd package set-home-activity --user 0 com.amazon.tv.launcher/.ui.Home
 ## Remote shortcut (accessibility service)
 
 Fire OS has no on-screen switch for third-party accessibility services, so the color-button
-shortcut was turned on over adb on 2026-10-25. Values before the change:
+shortcut (and the Home redirect above) is turned on over adb. First read the current list:
 
-```
-enabled_accessibility_services = null   (unset)
-accessibility_enabled          = 0
+```sh
+adb shell settings get secure enabled_accessibility_services
 ```
 
-How it was enabled (appended to the existing list, which was empty):
+If it prints `null` or nothing, enable just this service:
 
 ```sh
 adb shell settings put secure enabled_accessibility_services com.shivam.tvlauncher/.ShortcutKeyService
 adb shell settings put secure accessibility_enabled 1
 ```
 
-To turn it off and restore exactly the values above:
+Otherwise append to the existing list, separated by `:`, rather than overwriting it:
+
+```sh
+adb shell settings put secure enabled_accessibility_services "<current list>:com.shivam.tvlauncher/.ShortcutKeyService"
+adb shell settings put secure accessibility_enabled 1
+```
+
+The launcher checks this for you: when the chosen color button's service isn't enabled, the
+Settings panel (gear) shows a notice with these commands already filled in from the current
+list. The launcher only reads the setting; it never changes it.
+
+To turn it off from the TV without adb, set "Remote shortcut" to Off under gear → Launcher
+settings → Shortcuts: the service stays bound but ignores every key. Uninstalling the launcher
+also removes it. To turn it off over adb, put back the list you had before, or if it was empty:
 
 ```sh
 adb shell settings delete secure enabled_accessibility_services
 adb shell settings put secure accessibility_enabled 0
 ```
 
-To turn it off from the TV without adb, set "Remote shortcut" to Off under gear → Launcher
-settings → Shortcuts: the service stays bound but ignores every key. Uninstalling the launcher also removes it.
-If a Fire OS update switches it off, read the current list first and append again, separated by
-`:`, rather than overwriting it:
+If a Fire OS update switches it off, enable it again the same way.
 
-```sh
-adb shell settings get secure enabled_accessibility_services
-# empty or "null": put just our entry; otherwise put "<current list>:com.shivam.tvlauncher/.ShortcutKeyService"
-adb shell settings put secure enabled_accessibility_services <list>
-adb shell settings put secure accessibility_enabled 1
-```
-
-The launcher checks this for you: when the chosen color button's service isn't enabled, the
-Settings panel (gear) shows a notice with these two commands already filled in from the current
-list. The launcher only reads the setting; it never changes it.
+**Don't force-stop the launcher** (`am force-stop`, or Force stop in Fire OS's app settings):
+Android responds by removing its accessibility service from the enabled list, which turns the
+remote shortcut and the Home redirect off until you enable it again.
 
 ## Now playing card (notification listener)
 
 Android only lets an app see other apps' media sessions (what Spotify, YouTube etc. are playing)
 while it has an allowed notification listener. Fire OS has no on-screen switch for that either,
-so it was allowed over adb on 2026-10-26. The launcher's listener never reads notifications; it
-exists only to unlock the media sessions. Value before the change:
-
-```
-enabled_notification_listeners = null   (unset)
-```
-
-How it was allowed:
+so it is allowed over adb. The launcher's listener never reads notifications; it exists only to
+unlock the media sessions.
 
 ```sh
 adb shell cmd notification allow_listener com.shivam.tvlauncher/com.shivam.tvlauncher.MediaListenerService
@@ -109,8 +106,9 @@ If a Fire OS update or a reinstall drops it, run the allow command again.
 
 Your pins and their order, hidden apps, All apps order, console tiles, theme, animations and
 remote shortcut can be saved as one JSON file. (Backups from before console tiles, format
-version 1, still import; they leave your current console tiles as they are.) Fire OS doesn't let adb into the app's folder, and the launcher has no
-storage permission, so the file goes through a small bridge in the launcher that only answers adb.
+version 1, still import; they leave your current console tiles as they are.) Fire OS doesn't let
+adb into the app's folder, and the launcher has no storage permission, so the file goes through a
+small bridge in the launcher that only answers adb.
 
 Back up (on the TV: gear → Launcher settings → More settings → Export backup, then on the computer):
 
@@ -132,12 +130,14 @@ the one on your computer.
 
 ## What this depends on
 
-- **ADB debugging must stay on.** It is under Device & Software → Developer Options, which this
-  launcher's gear menu (Settings → Device & Software) opens directly. Don't turn it off while the
-  stock launcher is disabled, or these commands can't reach the TV.
-- The TV's IP is `<TV-IP>` today. If your router hands it a new one, look it up under
-  the Wi-Fi button in this launcher's top bar, or in the router's client list.
-- If `adb connect` asks for authorisation, accept the prompt on the TV screen.
+- **ADB debugging must stay on.** It is under Settings → My Fire TV → Developer Options (the
+  launcher's gear menu opens Fire OS Settings directly). Fire OS updates sometimes switch it off;
+  if `adb connect` is refused, turn it back on there.
+- **Your TV's IP address** (`<TV-IP>` above): look it up under the Wi-Fi button in this
+  launcher's top bar, in Fire OS under Settings → My Fire TV → About → Network, or in your
+  router's client list. It can change if your router hands out a new one.
+- If `adb connect` asks for authorisation, accept the "Allow USB debugging?" prompt on the TV.
+  If it times out, the TV is probably asleep.
 
 ## Checking the current state
 

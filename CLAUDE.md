@@ -2,7 +2,7 @@
 
 A custom home-screen launcher (Kotlin, Jetpack Compose for TV) for a Fire TV
 (model AFTNE4E43F, Fire OS / Android 11). Package: `com.shivam.tvlauncher`.
-Personal, sideloaded app; not published to any store.
+Sideloaded app, not published to any store; open source (MIT) on GitHub.
 
 See `RECOVERY.md` for everything TV-side: the Home-button workaround, the
 remote-shortcut accessibility service, backup/restore over adb, and how to get
@@ -11,7 +11,7 @@ Amazon's launcher back.
 ## Two development PCs
 
 This project is developed on two Windows PCs and synced through GitHub
-(`skoul27/Xiaomi-FireOS-TVLauncher`, private). Each PC has its own clone at
+(`skoul27/Xiaomi-FireOS-TVLauncher`). Each PC has its own clone at
 `C:\code\tv-launcher`; GitHub is the source of truth, not either PC's folder.
 
 - **Start of every session:** `git pull` before touching anything. If the working
@@ -66,32 +66,28 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 - Shell-injected keys (`adb shell input keyevent KEYCODE_PROG_BLUE`) don't reach the
   accessibility key filter, so the remote shortcut can only be tested with the real remote.
   The Home redirect can be tested over adb (`input keyevent KEYCODE_HOME` from another app).
-- The release build is also signed with the debug key (see `app/build.gradle.kts`),
-  so release and debug can install over each other.
+- Release builds use the key in `keystore.properties` (git-ignored) when that file exists,
+  and the debug key otherwise (see `app/build.gradle.kts`). On both PCs today there is no
+  `keystore.properties`, so release and debug install over each other.
 
-## Before going public (not yet: owner's call)
+## Public repo
 
-All development happens in this private repo for now. A public version is planned
-for later, as a separate repo with fresh history; this one stays private. Decisions
-already made (2026-10-26), and what needs doing first:
+This repo is public (decided 2026-10-28: one repo, not a separate public copy). Anything
+committed here is visible to everyone, so keep secrets, keystores and personal details out.
 
-- **History:** the old commits are authored with the owner's Gmail address. Publish
-  a fresh copy (no history) rather than making this repo public.
-- **Repo:** a new public repo, provisionally `Xiaomi-FireOS-TVLauncher-PROD`.
-- **License:** MIT, copyright skoul27.
-- **PlayStation logo:** Sony's trademark (`ui/ConsoleTile.kt`, traced from Wikimedia).
-  HDMI ports are now discovered at runtime in both builds (see Console tiles below);
-  the open question is only the brand marks.
-- **Package ID:** rename to `com.skoul27.tvlauncher` in the public version, so it can
-  sit beside this personal app on the same TV (same ID + different key = can't install).
-- **Release key:** a new release keystore for public APKs on GitHub Releases, kept out
-  of git (`keystore.properties`, git-ignored) and backed up to Drive. Release builds
-  fall back to the debug key when the file is absent, so anyone can still build.
-- **Docs:** a README (what it is, screenshots, sideloading, the Fire OS Home-button
-  caveat), and `RECOVERY.md` rewritten for general users: `<TV-IP>` instead of the
-  real IP, and without the dated notes about this TV.
+- **History:** the commits once authored with the owner's Gmail address were rewritten to
+  the noreply address before going public. Keep committing with the repo-local identity.
+- **License:** MIT, copyright skoul27 (`LICENSE`). Plus Jakarta Sans is OFL
+  (`third_party/plus-jakarta-sans/OFL.txt`); credits are listed in `README.md`.
+- **Package ID** stays `com.shivam.tvlauncher`, so the owner's TV keeps updating in place.
+- **Release key:** if public APKs on GitHub Releases are ever signed with a new release key,
+  they can't install over the owner's debug-signed copy (same package, different key), and
+  vice versa. Either sign releases with the shared debug keystore (via `keystore.properties`)
+  or accept a one-time uninstall on the TV (export a backup first).
+- **Docs:** `README.md` is for users (features, sideloading, the Fire OS Home-button caveat,
+  privacy, credits). `RECOVERY.md` is written for any user with `<TV-IP>`; TV-specific notes
+  belong in this file, not there.
 - The About panel (gear → About: version, developer Shivam Koul, koul@duck.com) stays.
-- Console tiles carry over as they are (Automatic / PlayStation / Xbox / Nintendo / Other /
-  Hidden per HDMI port, `Consoles.kt`). Xbox and Nintendo Switch marks come from Simple Icons
-  11.0.0 (CC0 paths), but the marks themselves are still Microsoft's and Nintendo's trademarks,
-  same as the PlayStation one: decide on all three together before publishing.
+- **Console marks:** PlayStation (traced from Wikimedia), Xbox and Nintendo Switch (Simple
+  Icons 11.0.0, CC0 paths) stay, with a trademark disclaimer in `README.md`. They label the
+  HDMI input only; don't use them anywhere else (app icon, banner, store art).
