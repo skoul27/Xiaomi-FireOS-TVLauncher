@@ -91,13 +91,16 @@ committed here is visible to everyone, so keep secrets, keystores and personal d
   (no `keystore.properties`), so it installs over the owner's TV copy and over earlier
   releases. Never switch releases to another key: every user would have to uninstall.
   To cut a release (only when the owner asks):
-  1. Bump `versionCode` (+1) and `versionName` in `app/build.gradle.kts`; commit and push.
+  1. Bump `versionCode` (+1) and `versionName` in `app/build.gradle.kts`, and add a section
+     for the version at the top of `CHANGELOG.md` (user-facing: what's new, better, fixed;
+     everything since the last release tag, `git log v<previous>..`); commit and push.
   2. `.\gradlew.bat clean assembleRelease` from that clean commit; check the signer with
      `apksigner verify --print-certs` (SHA-256 above).
   3. Copy the APK to a file named exactly `tv-launcher.apk` (the README's
      `releases/latest/download/tv-launcher.apk` link depends on the asset name; `gh`'s `#label`
      suffix doesn't rename it), then `gh release create v<versionName> tv-launcher.apk
-     --target master` with notes listing the changes, the APK's SHA-256 and the signer.
+     --target master`, with notes made of that version's `CHANGELOG.md` section plus the APK's
+     SHA-256 and the signer.
 - **Docs:** `README.md` is for users (features, sideloading, the Fire OS Home-button caveat,
   privacy, credits). `RECOVERY.md` is written for any user with `<TV-IP>`; TV-specific notes
   belong in this file, not there.

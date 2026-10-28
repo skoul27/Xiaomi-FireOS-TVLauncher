@@ -171,6 +171,10 @@ Nintendo Switch is a trademark of Nintendo. Fire TV and Fire OS are trademarks o
 project is not affiliated with or endorsed by any of them; the console marks are used only to
 label the HDMI input a console is connected to.
 
+## What's new
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+
 ## License
 
 [MIT](LICENSE) © skoul27
