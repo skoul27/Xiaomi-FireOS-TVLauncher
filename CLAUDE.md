@@ -87,10 +87,17 @@ committed here is visible to everyone, so keep secrets, keystores and personal d
 - **License:** MIT, copyright skoul27 (`LICENSE`). Plus Jakarta Sans is OFL
   (`third_party/plus-jakarta-sans/OFL.txt`); credits are listed in `README.md`.
 - **Package ID** stays `com.shivam.tvlauncher`, so the owner's TV keeps updating in place.
-- **Release key:** if public APKs on GitHub Releases are ever signed with a new release key,
-  they can't install over the owner's debug-signed copy (same package, different key), and
-  vice versa. Either sign releases with the shared debug keystore (via `keystore.properties`)
-  or accept a one-time uninstall on the TV (export a backup first).
+- **Releases:** GitHub Releases carry a ready-made APK, signed with the shared debug key
+  (no `keystore.properties`), so it installs over the owner's TV copy and over earlier
+  releases. Never switch releases to another key: every user would have to uninstall.
+  To cut a release (only when the owner asks):
+  1. Bump `versionCode` (+1) and `versionName` in `app/build.gradle.kts`; commit and push.
+  2. `.\gradlew.bat clean assembleRelease` from that clean commit; check the signer with
+     `apksigner verify --print-certs` (SHA-256 above).
+  3. Copy the APK to a file named exactly `tv-launcher.apk` (the README's
+     `releases/latest/download/tv-launcher.apk` link depends on the asset name; `gh`'s `#label`
+     suffix doesn't rename it), then `gh release create v<versionName> tv-launcher.apk
+     --target master` with notes listing the changes, the APK's SHA-256 and the signer.
 - **Docs:** `README.md` is for users (features, sideloading, the Fire OS Home-button caveat,
   privacy, credits). `RECOVERY.md` is written for any user with `<TV-IP>`; TV-specific notes
   belong in this file, not there.

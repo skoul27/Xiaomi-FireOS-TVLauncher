@@ -23,18 +23,49 @@ and Android TV devices running Android 9 or later should work, but haven't been 
 
 ## Install
 
-There is no download: you build the app yourself from this source code, which takes about
-15 minutes the first time. Your build is signed with a key made on your own computer, so you
-always know exactly what is running on your TV.
+Download the ready-made APK (quickest), or build it yourself from this source code. Either way
+you need a computer with [adb](https://developer.android.com/tools/releases/platform-tools)
+once, for the one-time setup further down.
 
-### 1. Get the tools
+### Prepare the TV
 
-**Easiest: Android Studio.** Install [Android Studio](https://developer.android.com/studio)
-(Windows, macOS or Linux). It includes the JDK, the Android SDK and adb. Open it once and finish
-the setup wizard with the standard options.
+1. Turn on **Settings → My Fire TV → Developer Options → ADB debugging**. If Developer Options
+   is hidden, open Settings → My Fire TV → About and press OK on the device name seven times.
+2. Find the TV's IP address under Settings → My Fire TV → About → Network.
 
-**Or command line only:** install JDK 17 or later (for example
-[Eclipse Temurin](https://adoptium.net)) and the
+### Option A: download the APK
+
+Each [release](../../releases/latest) has `tv-launcher.apk`, built from the tagged source.
+
+**From a computer** on the same network as the TV:
+
+```sh
+adb connect <TV-IP>:5555
+adb install -r tv-launcher.apk
+```
+
+Accept the "Allow USB debugging?" prompt on the TV the first time.
+
+**Or directly on the TV:** install the free **Downloader** app from the Amazon Appstore, allow it
+under Settings → My Fire TV → Developer Options → Install unknown apps, then enter this address
+in Downloader and choose Install:
+
+```
+https://github.com/skoul27/Xiaomi-FireOS-TVLauncher/releases/latest/download/tv-launcher.apk
+```
+
+The release notes list the APK's SHA-256 checksum and its signing certificate, if you want to
+check what you downloaded. To update, install a newer release the same way; your settings are
+kept.
+
+### Option B: build it yourself
+
+About 15 minutes the first time.
+
+**1. Get the tools.** Easiest: install [Android Studio](https://developer.android.com/studio)
+(Windows, macOS or Linux), which includes the JDK, the Android SDK and adb; open it once and
+finish the setup wizard with the standard options. Or, command line only: install JDK 17 or later
+(for example [Eclipse Temurin](https://adoptium.net)) and the
 [Android command-line tools](https://developer.android.com/studio#command-line-tools-only), then:
 
 ```sh
@@ -42,10 +73,10 @@ sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 sdkmanager --licenses
 ```
 
-Set `ANDROID_HOME` to the SDK folder, and add its `platform-tools` folder (where `adb` is) to
+and set `ANDROID_HOME` to the SDK folder, with its `platform-tools` folder (where `adb` is) on
 your `PATH`.
 
-### 2. Download the source
+**2. Download the source:**
 
 ```sh
 git clone https://github.com/skoul27/Xiaomi-FireOS-TVLauncher.git
@@ -54,46 +85,29 @@ cd Xiaomi-FireOS-TVLauncher
 
 Or use **Code → Download ZIP** on this page and unzip it.
 
-### 3. Build the APK
+**3. Build.** In Android Studio: File → Open, choose the project folder, wait for the Gradle
+sync to finish (accept any prompt to install SDK packages), then Build → Build App Bundle(s) /
+APK(s) → Build APK(s). The APK is at `app/build/outputs/apk/debug/app-debug.apk`.
 
-**In Android Studio:** File → Open, choose the project folder, and wait for the Gradle sync to
-finish (accept any prompt to install SDK packages). Then Build → Build App Bundle(s) / APK(s) →
-Build APK(s). The APK is at `app/build/outputs/apk/debug/app-debug.apk`.
-
-**From a terminal** in the project folder:
+From a terminal in the project folder:
 
 ```sh
 ./gradlew assembleRelease          # Windows: .\gradlew.bat assembleRelease
 ```
 
-The APK is at `app/build/outputs/apk/release/app-release.apk`. (Using Android Studio's JDK from
-a terminal: point `JAVA_HOME` at its `jbr` folder.)
+The APK is at `app/build/outputs/apk/release/app-release.apk`. (To use Android Studio's JDK from
+a terminal, point `JAVA_HOME` at its `jbr` folder.)
 
-Either way, the APK is signed with your computer's Android debug key
-(`~/.android/debug.keystore`, or `%USERPROFILE%\.android\debug.keystore` on Windows), which the
-build creates the first time. **Keep that file:** Android only installs an update signed with
-the same key as the installed app, so a build from another computer (or after losing the key)
-won't install over your launcher without uninstalling it first, which deletes its settings.
+**4. Install** it with the adb commands from Option A, using the path of your APK.
 
-### 4. Install it on the TV
+Your build is signed with your computer's Android debug key (`~/.android/debug.keystore`, or
+`%USERPROFILE%\.android\debug.keystore` on Windows), which the build creates the first time.
+**Keep that file:** Android only installs an update signed with the same key as the installed
+app. For the same reason, your own build and the downloaded release can't be installed over each
+other: switching between them means uninstalling first, which deletes the launcher's settings
+(export a backup first, see [RECOVERY.md](RECOVERY.md)).
 
-1. On the TV, turn on **Settings → My Fire TV → Developer Options → ADB debugging**. If
-   Developer Options is hidden, open Settings → My Fire TV → About and press OK on the device
-   name seven times.
-2. Find the TV's IP address under Settings → My Fire TV → About → Network.
-3. With the computer on the same network as the TV:
-
-   ```sh
-   adb connect <TV-IP>:5555
-   adb install -r app/build/outputs/apk/release/app-release.apk
-   ```
-
-   Accept the "Allow USB debugging?" prompt on the TV the first time. (Built in Android Studio?
-   Use the `debug/app-debug.apk` path instead.)
-4. Open **TV Launcher** from Your Apps & Channels, then do the one-time setup below.
-
-To update later: `git pull` (or download the ZIP again), build, and run the same
-`adb install -r` command. Your settings are kept.
+After installing, open **TV Launcher** from Your Apps & Channels and do the one-time setup below.
 
 ## One-time setup: Home button and Now playing
 
