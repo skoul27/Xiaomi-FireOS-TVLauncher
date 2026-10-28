@@ -1,5 +1,7 @@
 # TV Launcher
 
+[![Build](https://github.com/skoul27/Xiaomi-FireOS-TVLauncher/actions/workflows/build.yml/badge.svg)](https://github.com/skoul27/Xiaomi-FireOS-TVLauncher/actions/workflows/build.yml)
+
 A custom home screen for Amazon Fire TV, written in Kotlin with Jetpack Compose for TV. It
 replaces Fire OS's ad-filled home with a calm, glass-styled grid of your own apps.
 
@@ -23,24 +25,79 @@ and Android TV devices running Android 9 or later should work, but haven't been 
 
 ## Install
 
-You need a computer with [adb](https://developer.android.com/tools/releases/platform-tools)
-on the same network as the TV.
+There is no download: you build the app yourself from this source code, which takes about
+15 minutes the first time. Your build is signed with a key made on your own computer, so you
+always know exactly what is running on your TV.
 
-1. On the TV, turn on **Settings → My Fire TV → Developer Options → ADB debugging**. (If
+### 1. Get the tools
+
+**Easiest: Android Studio.** Install [Android Studio](https://developer.android.com/studio)
+(Windows, macOS or Linux). It includes the JDK, the Android SDK and adb. Open it once and finish
+the setup wizard with the standard options.
+
+**Or command line only:** install JDK 17 or later (for example
+[Eclipse Temurin](https://adoptium.net)) and the
+[Android command-line tools](https://developer.android.com/studio#command-line-tools-only), then:
+
+```sh
+sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+sdkmanager --licenses
+```
+
+Set `ANDROID_HOME` to the SDK folder, and add its `platform-tools` folder (where `adb` is) to
+your `PATH`.
+
+### 2. Download the source
+
+```sh
+git clone https://github.com/skoul27/Xiaomi-FireOS-TVLauncher.git
+cd Xiaomi-FireOS-TVLauncher
+```
+
+Or use **Code → Download ZIP** on this page and unzip it.
+
+### 3. Build the APK
+
+**In Android Studio:** File → Open, choose the project folder, and wait for the Gradle sync to
+finish (accept any prompt to install SDK packages). Then Build → Build App Bundle(s) / APK(s) →
+Build APK(s). The APK is at `app/build/outputs/apk/debug/app-debug.apk`.
+
+**From a terminal** in the project folder:
+
+```sh
+./gradlew assembleRelease          # Windows: .\gradlew.bat assembleRelease
+```
+
+The APK is at `app/build/outputs/apk/release/app-release.apk`. (Using Android Studio's JDK from
+a terminal: point `JAVA_HOME` at its `jbr` folder.)
+
+Either way, the APK is signed with your computer's Android debug key
+(`~/.android/debug.keystore`, or `%USERPROFILE%\.android\debug.keystore` on Windows), which the
+build creates the first time. **Keep that file:** Android only installs an update signed with
+the same key as the installed app, so a build from another computer (or after losing the key)
+won't install over your launcher without uninstalling it first, which deletes its settings.
+
+### 4. Install it on the TV
+
+1. On the TV, turn on **Settings → My Fire TV → Developer Options → ADB debugging**. If
    Developer Options is hidden, open Settings → My Fire TV → About and press OK on the device
-   name seven times.)
+   name seven times.
 2. Find the TV's IP address under Settings → My Fire TV → About → Network.
-3. Download `app-release.apk` from [Releases](../../releases), or build it yourself (below), then:
+3. With the computer on the same network as the TV:
 
    ```sh
    adb connect <TV-IP>:5555
-   adb install -r app-release.apk
+   adb install -r app/build/outputs/apk/release/app-release.apk
    ```
 
-   Accept the "Allow USB debugging?" prompt on the TV the first time.
-4. Open **TV Launcher** from Your Apps & Channels.
+   Accept the "Allow USB debugging?" prompt on the TV the first time. (Built in Android Studio?
+   Use the `debug/app-debug.apk` path instead.)
+4. Open **TV Launcher** from Your Apps & Channels, then do the one-time setup below.
 
-## The Home button on Fire OS
+To update later: `git pull` (or download the ZIP again), build, and run the same
+`adb install -r` command. Your settings are kept.
+
+## One-time setup: Home button and Now playing
 
 Fire OS always sends the Home button to Amazon's own launcher and won't let you disable it or
 pick another Home app. TV Launcher works around this with an accessibility service: when
@@ -74,29 +131,6 @@ service off when you do.
 
 **[RECOVERY.md](RECOVERY.md)** covers everything else: getting Amazon's home back, turning the
 service off, backup and restore, and checking the current state.
-
-## Build
-
-Requirements: JDK 17 and the Android SDK (platform 35, build-tools 35.0.0), with `JAVA_HOME`
-and `ANDROID_HOME` set.
-
-```sh
-./gradlew assembleRelease        # Windows: .\gradlew.bat assembleRelease
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-Release builds are signed with your local debug key unless a `keystore.properties` file
-(git-ignored) in the project root points at a release keystore:
-
-```properties
-storeFile=path/to/release.jks
-storePassword=...
-keyAlias=...
-keyPassword=...
-```
-
-An APK signed with one key can't be installed over one signed with another; uninstall first
-(which deletes the launcher's settings, so export a backup).
 
 ## Privacy
 
