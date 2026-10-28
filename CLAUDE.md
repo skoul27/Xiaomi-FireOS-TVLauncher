@@ -43,13 +43,17 @@ which wipes the launcher's data and the accessibility-service binding.
 - JDK 17 (Eclipse Temurin), `JAVA_HOME` set
 - Android SDK: platform 35, build-tools 35.0.0, platform-tools; `ANDROID_HOME` set
 - Gradle 8.11.1 through the wrapper, AGP 8.7.3, Kotlin 2.1.0 (versions in `gradle/libs.versions.toml`)
-- `local.properties` (`sdk.dir=...`) is per-PC and git-ignored
+- `local.properties` is per-PC and git-ignored. It holds `sdk.dir=...` and the TV's address
+  as `tv.ip=...`, which is kept out of this public repo. If `tv.ip` is missing on a PC, ask
+  the owner for it (or read it on the TV: Settings → My Fire TV → About → Network, or the
+  launcher's Wi-Fi button) and add the line.
 
 ## Build and install
 
 ```powershell
 .\gradlew.bat assembleDebug
-adb connect <TV-IP>:5555
+$tv = (Select-String -Path local.properties -Pattern '^tv\.ip=(.+)$').Matches[0].Groups[1].Value
+adb connect "${tv}:5555"
 adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
@@ -75,8 +79,11 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 This repo is public (decided 2026-10-28: one repo, not a separate public copy). Anything
 committed here is visible to everyone, so keep secrets, keystores and personal details out.
 
-- **History:** the commits once authored with the owner's Gmail address were rewritten to
-  the noreply address before going public. Keep committing with the repo-local identity.
+- **History:** rewritten on 2026-10-28 before going public (the Gmail author address and
+  the TV's IP removed from every commit). A clone made before that date has the old history:
+  never merge or push it. If `git pull` reports divergent histories, check for unpushed work,
+  save it as a patch, then `git fetch` and `git reset --hard origin/master` and reapply it.
+  Keep committing with the repo-local identity (skoul27, noreply address).
 - **License:** MIT, copyright skoul27 (`LICENSE`). Plus Jakarta Sans is OFL
   (`third_party/plus-jakarta-sans/OFL.txt`); credits are listed in `README.md`.
 - **Package ID** stays `com.shivam.tvlauncher`, so the owner's TV keeps updating in place.
