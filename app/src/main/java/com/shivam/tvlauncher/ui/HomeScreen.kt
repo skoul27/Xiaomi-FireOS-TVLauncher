@@ -138,12 +138,13 @@ private data class MenuTarget(val packageName: String, val row: RowKind)
 
 private enum class AppsPopup { All, Hidden }
 
-private enum class SettingsPanel { Launcher, Theme, Photo, Shortcuts, More, ConsoleTiles }
+private enum class SettingsPanel { Launcher, Theme, Photo, Shortcuts, More, ConsoleTiles, PayToPlay }
 
 private fun LauncherSection.panel(): SettingsPanel = when (this) {
     LauncherSection.Theme -> SettingsPanel.Theme
     LauncherSection.Shortcuts -> SettingsPanel.Shortcuts
     LauncherSection.ConsoleTiles -> SettingsPanel.ConsoleTiles
+    LauncherSection.PayToPlay -> SettingsPanel.PayToPlay
     LauncherSection.More -> SettingsPanel.More
 }
 
@@ -392,6 +393,7 @@ fun HomeScreen(
                 onDismiss = closePanel,
             )
             SettingsPanel.Photo -> PhotoUploadMenu(photoUpload, onDismiss = closePanel)
+            SettingsPanel.PayToPlay -> PayToPlayMenu(onDismiss = closePanel)
             SettingsPanel.Shortcuts -> ShortcutsMenu(homeRedirect, remoteShortcut, actions, onDismiss = closePanel)
             SettingsPanel.ConsoleTiles -> {
                 ConsoleTilesMenu(

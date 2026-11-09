@@ -32,6 +32,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +75,8 @@ import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.MaxTileName
 import com.shivam.tvlauncher.PhotoUpload
+import com.shivam.tvlauncher.PayServer
+import com.shivam.tvlauncher.PayToPlay
 import com.shivam.tvlauncher.PortTile
 import com.shivam.tvlauncher.R
 import com.shivam.tvlauncher.RemoteShortcut
@@ -83,6 +88,9 @@ import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlin.math.floor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -255,7 +263,7 @@ private fun ShortcutOffNotice(key: ColorKey, commands: List<String>) {
 }
 
 /** Where Launcher settings leads. Back from one of them puts focus on its row again. */
-enum class LauncherSection { Theme, Shortcuts, ConsoleTiles, More }
+enum class LauncherSection { Theme, Shortcuts, ConsoleTiles, PayToPlay, More }
 
 /** This launcher's own settings: three groups, each a panel of its own. */
 @Composable
@@ -275,6 +283,9 @@ fun LauncherSettingsMenu(
         }
         NavItem("Console tiles", "A card for each HDMI port", Modifier.focusRequester(rows.getValue(LauncherSection.ConsoleTiles)), MenuIcons.Gamepad) {
             onOpen(LauncherSection.ConsoleTiles)
+        }
+        NavItem("Pay to play", "Paid HDMI ports, prices and admin code", Modifier.focusRequester(rows.getValue(LauncherSection.PayToPlay)), MenuIcons.Lock) {
+            onOpen(LauncherSection.PayToPlay)
         }
         NavItem("More settings", "Export or import a backup", Modifier.focusRequester(rows.getValue(LauncherSection.More)), MenuIcons.Cloud) {
             onOpen(LauncherSection.More)
@@ -363,7 +374,7 @@ fun PhotoUploadMenu(state: PhotoUpload?, onDismiss: () -> Unit) {
 
 /** Dark modules on a white card with a quiet zone, so phone cameras pick it up off a dark panel. */
 @Composable
-private fun QrCode(text: String, modifier: Modifier = Modifier) {
+internal fun QrCode(text: String, modifier: Modifier = Modifier) {
     val matrix = remember(text) {
         QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, 0, 0, mapOf(EncodeHintType.MARGIN to 0))
     }
@@ -376,6 +387,89 @@ private fun QrCode(text: String, modifier: Modifier = Modifier) {
                 if (matrix[x, y]) drawRect(Color.Black, Offset(inset + x * cell, inset + y * cell), Size(cell, cell))
             }
         }
+    }
+}
+
+/**
+ * Pay to play is run from the owner's phone; this panel only hands it the address, as a QR code.
+ * Behind the admin code once one is set, so a player can't open the owner page and confirm
+ * their own payment.
+ */
+@Composable
+fun PayToPlayMenu(onDismiss: () -> Unit) {
+    val config by PayToPlay.config.collectAsState()
+    var unlocked by remember { mutableStateOf(config.pin.isEmpty()) }
+    val done = remember { FocusRequester() }
+    // Keeps the owner page up while this shows, so a first setup has something to open.
+    DisposableEffect(Unit) {
+        PayServer.hold()
+        onDispose { PayServer.release() }
+    }
+    val url by produceState<String?>(null) {
+        while (true) {
+            value = withContext(Dispatchers.IO) { PayServer.ownerUrl() }
+            delay(2_000)
+        }
+    }
+    MenuDialog(onDismiss, width = 600) {
+        PanelHeader("Pay to play", "Paid HDMI ports, set up from your phone", MenuIcons.Lock)
+        if (!unlocked) {
+            Text(
+                "Enter the admin code to see the owner page.",
+                style = LauncherText.Caption,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+            )
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+                PinPad { code ->
+                    val result = PayToPlay.checkPin(code)
+                    if (result == PayToPlay.PinResult.Ok) unlocked = true
+                    result.message()
+                }
+            }
+            return@MenuDialog
+        }
+        val current = url
+        if (current == null) {
+            Text(
+                "This TV isn't on a network a phone can reach (or port 8766 is in use). Connect it to Wi-Fi and open this again.",
+                style = LauncherText.Body,
+                color = LauncherColors.TextSecondary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                QrCode(current, Modifier.size(180.dp))
+                Spacer(Modifier.width(20.dp))
+                Column {
+                    Text("Open on your phone, and keep it bookmarked:", style = LauncherText.Caption, color = LauncherColors.TextSecondary)
+                    Spacer(Modifier.height(6.dp))
+                    Text(current, style = LauncherText.Code, color = LauncherColors.TextPrimary)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Confirm payments, give or end time, and set your UPI ID, prices, admin code and which ports are paid. " +
+                            "The phone must be on the same Wi-Fi.",
+                        style = LauncherText.Caption,
+                        color = LauncherColors.TextSecondary,
+                    )
+                }
+            }
+        }
+        val paid = config.ports.size
+        Text(
+            buildString {
+                append(if (paid == 0) "No ports are paid yet. " else "$paid port${if (paid == 1) " is" else "s are"} paid. ")
+                if (config.pin.isEmpty()) append("No admin code yet: set one on the phone. ")
+                append("Turn off HDMI-CEC on the console, or it can switch the TV to its input without the launcher.")
+            },
+            style = LauncherText.Caption,
+            color = LauncherColors.TextSecondary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+            MenuItem("Done", Modifier.width(180.dp).focusRequester(done), centered = true, onClick = onDismiss)
+        }
+        LaunchedEffect(Unit) { runCatching { done.requestFocus() } }
     }
 }
 

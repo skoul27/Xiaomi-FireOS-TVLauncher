@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        PayToPlay.init(this)
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             LauncherTheme(accent = Accent.named(settings.theme), animationsEnabled = settings.animations) {
