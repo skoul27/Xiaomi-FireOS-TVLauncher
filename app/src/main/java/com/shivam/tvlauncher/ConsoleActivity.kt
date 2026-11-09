@@ -53,7 +53,7 @@ class ConsoleActivity : ComponentActivity() {
 
     /** Null while playing (or on a free port); otherwise the gate's current screen. */
     private var step by mutableStateOf<GateStep?>(null)
-    private var now by mutableLongStateOf(System.currentTimeMillis())
+    private var now by mutableLongStateOf(PayToPlay.now())
     private var unlimited by mutableStateOf(false)
     private var playingSince by mutableLongStateOf(0L)
     private var wasPlaying = false
@@ -92,7 +92,7 @@ class ConsoleActivity : ComponentActivity() {
                             onPin = { code ->
                                 val result = PayToPlay.checkPin(code)
                                 if (result == PayToPlay.PinResult.Ok) {
-                                    PayToPlay.unlockUnlimited(inputId)
+                                    PayToPlay.unlockUnlimited(inputId, name)
                                     refresh()
                                 }
                                 result.message()
@@ -143,7 +143,7 @@ class ConsoleActivity : ComponentActivity() {
 
     /** Brings the screen in line with the paid state: tune while play is allowed, gate otherwise. */
     private fun refresh() {
-        now = System.currentTimeMillis()
+        now = PayToPlay.now()
         if (!gated) return tune()
         unlimited = inputId in PayToPlay.unlimited.value
         if (PayToPlay.mayPlay(inputId)) {
@@ -159,17 +159,20 @@ class ConsoleActivity : ComponentActivity() {
             wasPlaying = false
             step = GateStep.TimeUp(now)
         }
+        // A charge the owner made from the phone (a custom amount or time) for this port shows at once.
+        val waiting = PayToPlay.pending()?.takeIf { it.inputId == inputId }
         when (val current = step) {
-            null -> step = GateStep.Plans()
-            is GateStep.Paying -> when {
-                PayToPlay.pending.value != current.payment -> step = GateStep.Plans("The payment wasn't confirmed. Ask the owner, or try again.")
-                now - current.payment.createdAt > PaymentTimeoutMillis -> {
-                    PayToPlay.cancel(current.payment)
-                    step = GateStep.Plans("That took too long. Choose again to get a new code.")
-                }
+            null -> step = waiting?.let { GateStep.Paying(it) } ?: GateStep.Plans()
+            is GateStep.Plans -> if (waiting != null) step = GateStep.Paying(waiting)
+            is GateStep.Paying -> if (waiting != current.payment) {
+                step = waiting?.let { GateStep.Paying(it) }
+                    ?: GateStep.Plans("No payment was confirmed. Choose again for a new code, or ask the owner.")
             }
-            is GateStep.TimeUp -> if (now - current.at > TimeUpExitMillis) finish()
-            else -> {}
+            is GateStep.TimeUp -> when {
+                waiting != null && waiting.createdAt > current.at -> step = GateStep.Paying(waiting)
+                now - current.at > TimeUpExitMillis -> finish()
+            }
+            GateStep.Pin -> {}
         }
     }
 
@@ -251,8 +254,6 @@ class ConsoleActivity : ComponentActivity() {
         private const val EXTRA_NAME = "name"
         private const val EXTRA_PORT = "port"
 
-        /** A QR code left unpaid this long is dropped, so a stale one can't be confirmed later. */
-        private const val PaymentTimeoutMillis = 10 * 60_000L
 
         fun intent(context: Context, console: Console): Intent =
             Intent(context, ConsoleActivity::class.java)

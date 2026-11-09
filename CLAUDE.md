@@ -70,6 +70,12 @@ adb install -r app\build\outputs\apk\debug\app-debug.apk
 - Shell-injected keys (`adb shell input keyevent KEYCODE_PROG_BLUE`) don't reach the
   accessibility key filter, so the remote shortcut can only be tested with the real remote.
   The Home redirect can be tested over adb (`input keyevent KEYCODE_HOME` from another app).
+- Pay to play's guard bounces Fire OS's Live TV player (`com.amazon.tv.livetv`, which Alexa, the
+  Inputs menu and CEC open) and Fire OS settings while locked. Test it over adb with
+  `am start -a android.settings.SETTINGS` or `am start -n com.amazon.tv.livetv/.TvChannelsPlayerActivityAlias
+  -a android.intent.action.VIEW -d content://android.media.tv/passthrough/<input id>`: both should land
+  back on the launcher. On this TV HDMI 3 is `com.mediatek.tis/.HdmiInputService/HW4`. Unlock for
+  ten minutes with the `pay_unlock` call in `RECOVERY.md`.
 - Release builds use the key in `keystore.properties` (git-ignored) when that file exists,
   and the debug key otherwise (see `app/build.gradle.kts`). On both PCs today there is no
   `keystore.properties`, so release and debug install over each other.

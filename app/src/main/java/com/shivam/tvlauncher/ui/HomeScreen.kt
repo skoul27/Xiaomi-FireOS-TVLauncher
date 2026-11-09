@@ -69,6 +69,7 @@ import com.shivam.tvlauncher.Console
 import com.shivam.tvlauncher.HdmiPort
 import com.shivam.tvlauncher.LaunchableApp
 import com.shivam.tvlauncher.NowPlaying
+import com.shivam.tvlauncher.PayToPlay
 import com.shivam.tvlauncher.PhotoUpload
 import com.shivam.tvlauncher.PortTile
 import com.shivam.tvlauncher.TileMode
@@ -195,6 +196,9 @@ fun HomeScreen(
     val openPanel = { panel: SettingsPanel -> returnedFrom = null; panels = panels + panel }
     val closePanel = { returnedFrom = panels.lastOrNull(); panels = panels.dropLast(1) }
     var renaming by remember { mutableStateOf<HdmiPort?>(null) }
+    // While pay to play is locked, settings wait behind the admin code; this is what opens after it.
+    var afterAdmin by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val withAdmin = { open: () -> Unit -> if (PayToPlay.locked) afterAdmin = open else open() }
     var showAbout by remember { mutableStateOf(false) }
     val consoles = remember(ports, consoleTiles) { consolesFor(ports, consoleTiles) }
     // Where focus should go once the UI catches up with an action that removes the focused tile.
@@ -256,7 +260,7 @@ fun HomeScreen(
             if (event.type == KeyEventType.KeyDown && event.nativeKeyEvent.repeatCount == 0) {
                 when (color) {
                     ColorKey.Blue -> if (ui != null) popup = AppsPopup.All
-                    ColorKey.Green -> showSystem = true
+                    ColorKey.Green -> withAdmin { showSystem = true }
                     ColorKey.Yellow -> if (ui != null) popup = AppsPopup.Hidden
                     ColorKey.Red -> actions.refreshApps()
                 }
@@ -304,7 +308,7 @@ fun HomeScreen(
                 ConsolesRow(
                     consoles,
                     onOpen = actions::openConsole,
-                    onLongPress = { panels = listOf(SettingsPanel.ConsoleTiles) },
+                    onLongPress = { withAdmin { panels = listOf(SettingsPanel.ConsoleTiles) } },
                     modifier = Modifier.onDpad(Key.DirectionUp, enterMyApps),
                 )
             }
@@ -330,7 +334,7 @@ fun HomeScreen(
                 }
                 RoundIconButton(actions::openCast, shape = TopBarButtonShape) { CastIcon(it, size = 19.dp) }
                 NetworkButton(actions::openWifiSettings)
-                RoundIconButton({ showSystem = true }, Modifier.focusProperties { right = FocusRequester.Cancel }, TopBarButtonShape) {
+                RoundIconButton({ withAdmin { showSystem = true } }, Modifier.focusProperties { right = FocusRequester.Cancel }, TopBarButtonShape) {
                     GearIcon(it, size = 19.dp)
                 }
             },
@@ -380,7 +384,15 @@ fun HomeScreen(
             )
         }
         if (showAbout) AboutMenu(onDismiss = { showAbout = false })
-        // One glass panel at a time: two stacked read as clutter.
+        afterAdmin?.let { open ->
+            AdminCodeMenu(
+                onUnlocked = {
+                    afterAdmin = null
+                    open()
+                },
+                onDismiss = { afterAdmin = null },
+            )
+        }        // One glass panel at a time: two stacked read as clutter.
         when (panels.lastOrNull()) {
             SettingsPanel.Launcher -> LauncherSettingsMenu(
                 returnedFrom = LauncherSection.entries.firstOrNull { it.panel() == returnedFrom },
@@ -464,6 +476,7 @@ fun HomeScreen(
         panels = emptyList()
         renaming = null
         showAbout = false
+        afterAdmin = null
         // A closing dialog hands focus back to our window; wait for that, or it overrides us.
         snapshotFlow { windowInfo.isWindowFocused }.first { it }
         focusStart()

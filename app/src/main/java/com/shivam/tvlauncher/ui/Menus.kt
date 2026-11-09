@@ -398,7 +398,9 @@ internal fun QrCode(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun PayToPlayMenu(onDismiss: () -> Unit) {
     val config by PayToPlay.config.collectAsState()
-    var unlocked by remember { mutableStateOf(config.pin.isEmpty()) }
+    val context = LocalContext.current
+    // Already past the admin code if the gear menu asked for it (settings stay open a while after).
+    var unlocked by remember { mutableStateOf(config.pin.isEmpty() || PayToPlay.adminLeft() > 0) }
     val done = remember { FocusRequester() }
     // Keeps the owner page up while this shows, so a first setup has something to open.
     DisposableEffect(Unit) {
@@ -423,7 +425,10 @@ fun PayToPlayMenu(onDismiss: () -> Unit) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
                 PinPad { code ->
                     val result = PayToPlay.checkPin(code)
-                    if (result == PayToPlay.PinResult.Ok) unlocked = true
+                    if (result == PayToPlay.PinResult.Ok) {
+                        PayToPlay.unlockAdmin()
+                        unlocked = true
+                    }
                     result.message()
                 }
             }
@@ -459,17 +464,45 @@ fun PayToPlayMenu(onDismiss: () -> Unit) {
         Text(
             buildString {
                 append(if (paid == 0) "No ports are paid yet. " else "$paid port${if (paid == 1) " is" else "s are"} paid. ")
-                if (config.pin.isEmpty()) append("No admin code yet: set one on the phone. ")
-                append("Turn off HDMI-CEC on the console, or it can switch the TV to its input without the launcher.")
+                if (config.pin.isEmpty()) {
+                    append("Set an admin code on the phone: until then, settings and Fire TV's own inputs aren't locked.")
+                } else if (config.guard && paid > 0) {
+                    if (!PayToPlay.guardServiceOn()) append("The lock needs \"${context.getString(R.string.shortcut_service_label)}\" on under Accessibility. ")
+                    append("Settings and Fire TV's own input switching lock again 10 minutes after the admin code.")
+                }
             },
             style = LauncherText.Caption,
             color = LauncherColors.TextSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
             MenuItem("Done", Modifier.width(180.dp).focusRequester(done), centered = true, onClick = onDismiss)
+            if (PayToPlay.adminLeft() > 0 && config.pin.isNotEmpty()) {
+                MenuItem("Lock now", Modifier.width(180.dp), centered = true) {
+                    PayToPlay.lockAdmin()
+                    onDismiss()
+                }
+            }
         }
         LaunchedEffect(Unit) { runCatching { done.requestFocus() } }
+    }
+}
+
+/** Settings are locked by pay to play: the admin code opens them for [PayToPlay.AdminWindowMillis]. */
+@Composable
+fun AdminCodeMenu(onUnlocked: () -> Unit, onDismiss: () -> Unit) {
+    MenuDialog(onDismiss, width = 420) {
+        PanelHeader("Admin code", "Settings are locked by pay to play", MenuIcons.Lock)
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            PinPad { code ->
+                val result = PayToPlay.checkPin(code)
+                if (result == PayToPlay.PinResult.Ok) {
+                    PayToPlay.unlockAdmin()
+                    onUnlocked()
+                }
+                result.message()
+            }
+        }
     }
 }
 

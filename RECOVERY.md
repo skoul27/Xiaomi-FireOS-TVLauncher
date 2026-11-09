@@ -128,6 +128,22 @@ are kept, so they reappear if you install them later. The file is plain JSON; ed
 is fine as long as it stays valid. Uninstalling the launcher deletes the copy on the TV, so keep
 the one on your computer.
 
+## Pay to play: locked out
+
+With a paid HDMI port, an admin code and the lock on, the launcher's gear menu and Fire TV's own
+settings and Live TV player need the admin code (or "Unlock for 10 minutes" on the owner page).
+
+- **Forgot the admin code:** set a new one from the owner page's Setup tab. It doesn't ask for the
+  old one.
+- **Lost the owner page too:** from a computer with adb access, unlock for ten minutes and print
+  the page's address:
+
+  ```sh
+  adb shell content call --uri content://com.shivam.tvlauncher.backup --method pay_unlock
+  ```
+
+  Open the printed address on your phone, bookmark it, and set a new admin code under Setup.
+
 ## What this depends on
 
 - **ADB debugging must stay on.** It is under Settings → My Fire TV → Developer Options (the

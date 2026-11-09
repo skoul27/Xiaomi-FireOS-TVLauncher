@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
 import android.os.Binder
+import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import java.io.FileNotFoundException
 
@@ -18,6 +19,13 @@ import java.io.FileNotFoundException
  * storage permission. This serves exactly one file, and only to the adb shell (or root): every
  * other caller, including other apps, is refused. It never imports anything itself; the
  * launcher's Import button validates the file first.
+ *
+ * It also gets the owner back into pay to play when the admin code and the owner page's address
+ * are both lost (adb access is the owner's proof):
+ *
+ *   adb shell content call --uri content://com.shivam.tvlauncher.backup --method pay_unlock
+ *
+ * unlocks settings for ten minutes and prints the owner page's address.
  */
 class BackupFileProvider : ContentProvider() {
     override fun onCreate() = true
@@ -36,6 +44,21 @@ class BackupFileProvider : ContentProvider() {
                 file,
                 ParcelFileDescriptor.MODE_WRITE_ONLY or ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE,
             )
+        }
+    }
+
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        val uid = Binder.getCallingUid()
+        if (uid != SHELL_UID && uid != ROOT_UID) throw SecurityException("Only adb may use this.")
+        if (method != "pay_unlock") return null
+        PayToPlay.init(context ?: return null)
+        PayToPlay.unlockAdmin()
+        PayServer.hold()
+        // Kept up for the ten minutes, so the address works even with no port paid yet.
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ PayServer.release() }, PayToPlay.AdminWindowMillis)
+        return Bundle().apply {
+            putString("unlocked", "10 minutes")
+            putString("owner_page", PayServer.ownerUrl() ?: "unavailable: the TV has no network address")
         }
     }
 

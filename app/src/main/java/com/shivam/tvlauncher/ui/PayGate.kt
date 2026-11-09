@@ -144,6 +144,7 @@ private fun PayingScreen(config: PayConfig, payment: PendingPayment, now: Long, 
         Column(Modifier.widthIn(max = 420.dp)) {
             Text("₹${payment.plan.price}", style = LauncherText.Hero, color = LauncherColors.TextPrimary)
             Text("for ${payment.plan.durationLabel} on ${payment.portName}", style = LauncherText.Title, color = LauncherColors.TextSecondary)
+            if (payment.custom) Text("Set by the owner", style = LauncherText.Caption, color = LauncherColors.TextTertiary)
             Spacer(Modifier.height(18.dp))
             Text("Scan with any UPI app (Google Pay, PhonePe, Paytm…) and pay.", style = LauncherText.Body, color = LauncherColors.TextPrimary)
             Spacer(Modifier.height(4.dp))

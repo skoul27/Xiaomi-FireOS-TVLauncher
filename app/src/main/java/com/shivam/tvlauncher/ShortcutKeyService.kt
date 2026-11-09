@@ -11,6 +11,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,9 +31,13 @@ import kotlinx.coroutines.launch
  * bound after Amazon's home has already appeared), after the process dies while the launcher is
  * in front (an update, a crash, a low-memory kill), and whenever the screen wakes.
  *
+ * It is also pay to play's guard: while [PayToPlay.locked], Fire OS's own ways onto an input
+ * (its Live TV player, which Alexa, the Inputs menu and HDMI-CEC all open) and its settings
+ * (where the guard could be switched off or the launcher stopped) are sent back to the launcher.
+ *
  * Its config (res/xml/shortcut_key_service.xml) asks for key filtering and for window changes in
- * Amazon's launcher only, never window content. It looks at the key code and at which Amazon
- * screen opened, nothing else, and logs nothing.
+ * Amazon's launcher, Live TV player and settings apps only, never window content. It looks at the
+ * key code and at which screen opened, nothing else, and logs nothing.
  */
 class ShortcutKeyService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -54,6 +59,7 @@ class ShortcutKeyService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        PayToPlay.init(this)
         val store = LauncherPrefsStore(this)
         scope.launch {
             store.prefs.collect {
@@ -124,6 +130,19 @@ class ShortcutKeyService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val name = event.className?.toString() ?: return
+        val guarded = isGuarded(event.packageName?.toString(), name)
+        // Unlocked with the admin code: each settings screen opened keeps it unlocked a while longer.
+        if (guarded && PayToPlay.adminLeft() > 0) PayToPlay.unlockAdmin()
+        if (guarded && PayToPlay.locked) {
+            pendingRedirect?.cancel()
+            bringLauncherToFront(home = true)
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastGuardToast > 3_000) {
+                lastGuardToast = now
+                Toast.makeText(this, "Locked by pay to play. Open consoles from the home screen.", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         when {
             name == AmazonHome -> {
                 val passingToSettings = SystemClock.elapsedRealtime() < settingsExpectedUntil
@@ -140,10 +159,32 @@ class ShortcutKeyService : AccessibilityService() {
         }
     }
 
+    private var lastGuardToast = 0L
+
+    /** Fire OS screens a player could use to get onto a paid input, or to switch the guard off. */
+    private fun isGuarded(pkg: String?, className: String): Boolean = when (pkg) {
+        null -> false
+        AmazonLauncher -> className.contains("Settings")
+        else -> pkg in GuardedPackages
+    }
+
     override fun onInterrupt() = Unit
 
     companion object {
         private const val AmazonHome = "com.amazon.tv.launcher.ui.HomeActivity_vNext"
+        private const val AmazonLauncher = "com.amazon.tv.launcher"
+        /** Every package the config lists other than Amazon's launcher: Live TV and settings. */
+        private val GuardedPackages = setOf(
+            "com.amazon.tv.livetv",
+            "com.amazon.tv.settings.v2",
+            "com.amazon.tv.settings.mediatek",
+            "com.amazon.tv.quicksettings",
+            "com.amazon.tv.quicksettings.ui",
+            "com.amazon.android.settings",
+            "com.amazon.tv.devicecontrolsettings",
+            "com.android.settings",
+            "com.android.tv.settings",
+        )
         private const val RedirectDelayMs = 400L
         private const val SettingsWaitMs = 10_000L
         private const val StateFile = "service"
