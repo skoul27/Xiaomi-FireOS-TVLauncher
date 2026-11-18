@@ -36,7 +36,7 @@ which wipes the launcher's data and the accessibility-service binding.
 - To check a keystore:
   `keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -storepass android`
 - To check a built APK:
-  `%ANDROID_HOME%\build-tools\35.0.0\apksigner.bat verify --print-certs app\build\outputs\apk\debug\app-debug.apk`
+  `%ANDROID_HOME%\build-tools\35.0.0\apksigner.bat verify --print-certs app\build\outputs\apk\release\app-release.apk`
 
 ## Toolchain
 
@@ -51,11 +51,21 @@ which wipes the launcher's data and the accessibility-service binding.
 ## Build and install
 
 ```powershell
-.\gradlew.bat assembleDebug
+.\gradlew.bat assembleRelease
 $tv = (Select-String -Path local.properties -Pattern '^tv\.ip=(.+)$').Matches[0].Groups[1].Value
 adb connect "${tv}:5555"
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+adb install -r app\build\outputs\apk\release\app-release.apk
+adb shell cmd package compile -m speed-profile com.shivam.tvlauncher
 ```
+
+- **Install release builds on the TV, not debug.** A debug build is debuggable and unshrunk, so
+  ART runs it noticeably slower (switching on 2026-11-18 made the launcher visibly faster and
+  cut its memory from ~105 to ~92 MB). Both are signed with the shared key, so either installs
+  over the other. The `compile` line applies the baseline profile right away instead of
+  waiting for the TV's idle-time optimizer. Use `assembleDebug` only to debug something.
+- `sdk.dir` in `local.properties` must use forward slashes (`C:/Users/...`) or doubled
+  backslashes: a single backslash is an escape in a properties file, and the build fails with
+  "The filename, directory name, or volume label syntax is incorrect".
 
 - Call the wrapper as `.\gradlew.bat` or by full path; on at least one PC, `cmd`
   will not run a bare `gradlew.bat` from the current directory.

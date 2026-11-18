@@ -14,8 +14,8 @@ android {
         applicationId = "com.shivam.tvlauncher"
         minSdk = 28
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.2.2"
     }
 
     // Release key for published APKs, from a git-ignored keystore.properties (storeFile, storePassword,

@@ -23,6 +23,10 @@ and Android TV devices running Android 9 or later should work, but haven't been 
 - **Backgrounds**: a dynamic background tinted from the focused app, four built-in wallpapers, or
   your own photo, chosen from your phone by scanning a QR code (the launcher serves a one-time
   upload page on your local network while that panel is open).
+- **Pay to play** (optional): charge for time on chosen HDMI inputs. The TV shows a plan picker
+  and a UPI QR code; you confirm payment from your phone (the TV serves an owner page on your
+  local network), the time counts down on screen, and an admin code locks Fire OS's own input
+  and settings menus so the gate can't be skipped.
 - **Remote shortcut**: open the launcher from any app with a color button on the remote.
 - **Themes**: accent colors and animation settings.
 - **Backup and restore** of your whole setup as one JSON file, over adb.
